@@ -107,7 +107,11 @@ describe("POST /api/settings/handle", () => {
 
   it("rejects taken handle (409)", async () => {
     seedUser(db, { id: "other-user", handle: "taken", githubId: "99999" });
-    seedUser(db, { id: userId, handle: `${PENDING_HANDLE_PREFIX}${userId}` });
+    seedUser(db, {
+      id: userId,
+      handle: `${PENDING_HANDLE_PREFIX}${userId}`,
+      githubId: "88888",
+    });
     const res = await postHandle(
       { handle: "taken", timezone: "UTC" },
       { user: { id: userId } },
