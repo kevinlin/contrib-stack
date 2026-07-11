@@ -1,0 +1,12 @@
+[
+  {
+    "id": 4,
+    "action_name": "opened",
+    "created_at": "2024-06-16T07:00:00.000Z"
+  },
+  {
+    "id": 5,
+    "action_name": "pushed to",
+    "created_at": "2024-07-01T12:00:00.000Z"
+  }
+]

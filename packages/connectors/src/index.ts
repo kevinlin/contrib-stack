@@ -9,3 +9,4 @@ export {
 } from "./types";
 
 export { githubConnector } from "./github";
+export { makeGitlabConnector } from "./gitlab";
