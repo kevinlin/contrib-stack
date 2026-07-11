@@ -9,3 +9,12 @@ export function createDb(path?: string) {
 }
 
 export type Db = ReturnType<typeof createDb>;
+
+let dbInstance: Db | null = null;
+
+export function getDb(): Db {
+  if (!dbInstance) {
+    dbInstance = createDb();
+  }
+  return dbInstance;
+}
