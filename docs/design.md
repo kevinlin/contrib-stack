@@ -1,0 +1,118 @@
+# ContribStack — Design
+
+Date: 2026-07-11. Decisions and reasoning: [requirements/decision-log.md](requirements/decision-log.md) (D1–D19).
+
+## 1. Product summary
+
+Hosted multi-user web app. Each user gets a public developer-activity profile at `contribstack.app/<handle>`: one interactive heatmap where every connected source renders as its own colored layer — overlaid, never merged. The same heatmap embeds into any external site via a web-component scriptlet.
+
+MVP sources: GitHub and GitLab (cloud or self-hosted), pulled server-side with user-supplied read-only PATs. A generic ingest API accepts daily counts from any future connector (Bitbucket crawler, AI-tool push agents, community tools) without server changes.
+
+## 2. Goals and non-goals
+
+**Goals (success criteria)**
+1. Sign in with GitHub, claim a handle, connect GitHub PAT + self-hosted GitLab + gitlab.com; full history backfills.
+2. Profile shows overlaid multi-year heatmap; layer toggles, stat tiles, and year navigation work.
+3. `widget.js` on an external page renders the interactive rolling-year widget with click-through to the profile.
+4. An ingest connection created in the UI plus a `curl` upsert appears as a new colored layer without a deploy.
+5. Warm-cache profile load under ~1s. Private toggle hides both page and embed.
+6. Profile page and widget are responsive and touch-friendly.
+
+**Non-goals (MVP)**
+Teams/orgs/leaderboards; badges or gamification beyond streak tiles; charts beyond the heatmap; data export; OG share images; iframe embed fallback; Bitbucket connector; AI-tool connectors; native mobile apps.
+
+## 3. Architecture
+
+pnpm monorepo, three packages:
+
+| Package | Contents | Depends on |
+|---|---|---|
+| `apps/web` | Next.js (App Router, TS): SSR profile pages, settings UI, API routes, Auth.js GitHub OAuth | `packages/widget`, `packages/connectors` |
+| `packages/widget` | Framework-free vanilla TS + SVG web component `<contrib-stack>`; Vite lib build → self-contained `widget.js` (~10–15 KB budget) | nothing |
+| `packages/connectors` | Source-pull logic (GitHub GraphQL, GitLab events), backfill/refresh loops | nothing (no Next.js imports) |
+
+Deployment: Railway single node with volume. SQLite via Drizzle ORM + better-sqlite3. Litestream streams the DB to Cloudflare R2 for backup. Single-writer constraint accepted (D10); scale path is Turso/libSQL if ever needed.
+
+## 4. Data model
+
+| Table | Columns | Notes |
+|---|---|---|
+| `users` | id, github_id, handle (unique), timezone, is_private, created_at | timezone default browser-detected at signup (D17) |
+| `connections` | id, user_id, slug, type (`github`\|`gitlab`\|`ingest`), label, color, base_url, credential_encrypted, api_key_hash, status (`ok`\|`backfilling`\|`error`), last_synced_at, created_at | slug: URL-safe, derived from label, unique per user — referenced by the widget `sources` attribute. base_url null = cloud host (D15). credential_encrypted: AES-256-GCM PAT, null for ingest. api_key_hash: ingest only, key shown once at creation (D16) |
+| `daily_counts` | connection_id, date, count; PK (connection_id, date) | the only fact table; all source types land here |
+| Auth.js tables | via Drizzle adapter | sessions/accounts |
+
+**Layer = connection** (not platform). Color defaults to the platform signature (GitHub green, GitLab orange); a second connection of the same platform auto-gets a distinguishable shade; user can change any color from a preset palette (includes known AI-tool signature colors for future ingest connections).
+
+## 5. API surface
+
+| Route | Auth | Behavior |
+|---|---|---|
+| `GET /api/profile/:handle?year=` | none, open CORS | Profile meta + per-connection daily counts for the year (or rolling year). Private profile → same response as unknown handle. Triggers stale-refresh (§7) |
+| `POST /api/ingest` | `Authorization: Bearer <connection API key>` | Body `[{date, count}, ...]`. Upsert: replaces count per (connection, date) — idempotent (D16). Validates ISO dates and count ≥ 0; caps payload size; rate-limits per key; atomic per request (all rows or none) |
+| Settings routes | Auth.js session | Connection CRUD (PAT validated against the source API on save), color/label edit, full resync, privacy toggle, handle claim, timezone |
+| `/widget.js` | none | Static widget bundle, long-cache with hash busting |
+
+## 6. Connectors
+
+Common interface in `packages/connectors`:
+
+```ts
+interface Connector {
+  validate(creds, baseUrl): Promise<AccountInfo>   // called on save
+  backfill(creds, baseUrl, since): AsyncIterable<DailyCount[]>  // year windows
+  refresh(creds, baseUrl, window): Promise<DailyCount[]>        // trailing ~35 days
+}
+```
+
+- **GitHub**: GraphQL `contributionsCollection` — returns the contribution calendar pre-bucketed by GitHub; taken as-is (D17). Backfill loops 1-year windows back to `createdAt`. Works for github.com and GHE via base_url.
+- **GitLab**: `GET /users/:id/events` paged, timestamps bucketed into the user's profile timezone server-side. Native event definition, no normalization (D6). Works for gitlab.com and self-managed via base_url.
+- **Ingest**: no connector code — external agents push pre-bucketed dates.
+
+Known limitation (documented, not solved): the server must be able to reach self-hosted instances; VPN-only hosts won't work.
+
+## 7. Sync engine
+
+- **Persist forever**: `daily_counts` rows are permanent; history never re-pulled (D9).
+- **Backfill** on connection create: fire-and-forget async loop over year windows, `status = backfilling`, progress polled by the settings UI. No queue system — single node, in-process.
+- **Stale-while-revalidate** on profile/embed requests: always serve persisted data immediately; if `last_synced_at` > 10 min, kick a background refresh of the trailing 35 days. Per-connection in-process mutex prevents stampedes.
+- **Manual full resync** button in settings covers history-mutating cases (rebases, backdated commits).
+
+## 8. Profile page UX
+
+- Year-at-a-time 53-week heatmap; year list navigates back to earliest data. No month zoom.
+- **Split-cell rendering** (D7): a day with N active layers divides into N stripes, each in its connection color, shade = that source's intensity for the day. Hover/tap tooltip lists exact per-connection counts.
+- **Legend chips** = one per connection (color swatch + label + total). Click toggles/isolates layers; toggles also filter stat tiles.
+- **Stat tiles**: current streak, longest streak, total active days, per-connection totals. Streak = activity on any visible connection (D12). Tiles recompute per selected year; "All" tab = lifetime.
+- Responsive (D19): heatmap fixed cell size scrolling horizontally in its container (auto-scrolled to most recent); tiles reflow 4→2 columns; touch tap replaces hover.
+
+## 9. Embed widget
+
+```html
+<script src="https://contribstack.app/widget.js" async></script>
+<contrib-stack user="kevinlin" theme="auto" sources="github-personal,gitlab-work"></contrib-stack>
+```
+
+- Shadow DOM, inline SVG, auto-sizes to container. Attributes: `user` (required), `theme` (`light`|`dark`|`auto`), `sources` (optional filter by connection slug), `range` (default rolling year).
+- Fully interactive (toggles, tooltips) minus year navigation; any cell/header click goes to the profile page.
+- The profile page mounts the same component — one rendering path, no drift (D11).
+
+## 10. Security
+
+- PATs encrypted at rest with AES-256-GCM; key from environment; decrypted only inside the connector layer; never sent to the client; never logged. Users instructed to create read-only, minimal-scope tokens.
+- Ingest API keys stored hashed (SHA-256); plaintext shown once at creation. Per-connection scope: a leaked key writes one layer of one profile, nothing else (D16).
+- Private profiles indistinguishable from nonexistent handles on the public API.
+- Standard rate limiting on public endpoints.
+
+## 11. Error handling
+
+- Failed PAT / source API error → connection `status = error`, banner in settings; profile keeps serving persisted history. Degrade, never blank.
+- Rate-limited pull → skip the refresh, serve stale.
+- Ingest: invalid payload rejected atomically with a specific error message.
+
+## 12. Testing
+
+- **Unit**: streak and aggregation math, split-cell layout, upsert idempotency, encryption round-trip.
+- **Connector**: recorded API fixtures (GitHub GraphQL, GitLab events); no live calls in CI.
+- **E2E (Playwright)**: mocked sign-in → connect source → profile renders → external embed test page renders widget.
+- **CI budget check**: widget bundle size.
