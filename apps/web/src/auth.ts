@@ -25,7 +25,7 @@ function createAdapter(): Adapter {
     ...baseAdapter,
     async createUser(user) {
       const id = user.id ?? crypto.randomUUID();
-      return db
+      const row = db
         .insert(users)
         .values({
           id,
@@ -41,6 +41,7 @@ function createAdapter(): Adapter {
         })
         .returning()
         .get();
+      return { ...row, email: row.email ?? "" };
     },
   };
 }

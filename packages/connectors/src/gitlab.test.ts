@@ -75,8 +75,8 @@ describe("makeGitlabConnector", () => {
 
   describe("backfill", () => {
     it("pages events across year windows and buckets by timezone", async () => {
-      vi.mocked(fetch).mockImplementation(async (url: string | URL) => {
-        const href = url.toString();
+      vi.mocked(fetch).mockImplementation(async (input) => {
+        const href = input.toString();
 
         if (href.endsWith("/api/v4/user")) {
           return mockJsonResponse(userFixture);
@@ -139,8 +139,8 @@ describe("makeGitlabConnector", () => {
       vi.useFakeTimers();
       vi.setSystemTime(new Date("2025-06-14T15:30:00Z"));
 
-      vi.mocked(fetch).mockImplementation(async (url: string | URL) => {
-        const href = url.toString();
+      vi.mocked(fetch).mockImplementation(async (input) => {
+        const href = input.toString();
         if (href.endsWith("/api/v4/user")) {
           return mockJsonResponse(userFixture);
         }

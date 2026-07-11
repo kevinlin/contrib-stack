@@ -11,6 +11,7 @@
     "e2e": "playwright test"
   },
   "dependencies": {
+    "@auth/core": "^0.34.3",
     "@auth/drizzle-adapter": "^1.11.2",
     "@contrib-stack/connectors": "workspace:*",
     "better-sqlite3": "^12.11.1",
