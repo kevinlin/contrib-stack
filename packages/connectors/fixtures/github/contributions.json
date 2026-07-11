@@ -1,0 +1,34 @@
+{
+  "data": {
+    "viewer": {
+      "contributionsCollection": {
+        "contributionCalendar": {
+          "weeks": [
+            {
+              "contributionDays": [
+                { "date": "2025-06-01", "contributionCount": 0 },
+                { "date": "2025-06-02", "contributionCount": 3 },
+                { "date": "2025-06-03", "contributionCount": 5 },
+                { "date": "2025-06-04", "contributionCount": 1 },
+                { "date": "2025-06-05", "contributionCount": 0 },
+                { "date": "2025-06-06", "contributionCount": 2 },
+                { "date": "2025-06-07", "contributionCount": 4 }
+              ]
+            },
+            {
+              "contributionDays": [
+                { "date": "2025-06-08", "contributionCount": 6 },
+                { "date": "2025-06-09", "contributionCount": 0 },
+                { "date": "2025-06-10", "contributionCount": 8 },
+                { "date": "2025-06-11", "contributionCount": 2 },
+                { "date": "2025-06-12", "contributionCount": 1 },
+                { "date": "2025-06-13", "contributionCount": 0 },
+                { "date": "2025-06-14", "contributionCount": 7 }
+              ]
+            }
+          ]
+        }
+      }
+    }
+  }
+}
