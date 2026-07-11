@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>ContribStack Widget Dev</title>
+    <style>
+      body {
+        font-family: system-ui, sans-serif;
+        max-width: 900px;
+        margin: 2rem auto;
+        padding: 0 1rem;
+      }
+      h1 { font-size: 1.25rem; }
+      contrib-stack {
+        display: block;
+        border: 1px solid #d0d7de;
+        border-radius: 8px;
+        margin-top: 1rem;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>ContribStack Widget — local fixture</h1>
+    <p>Uses inline JSON + mocked fetch (no server required).</p>
+
+    <contrib-stack
+      user="kevinlin"
+      theme="auto"
+      range="1y"
+      api="https://contribstack.app"
+      link="off"
+    ></contrib-stack>
+
+    <script type="module">
+      const FIXTURE = {
+        handle: "kevinlin",
+        years: [2026, 2025],
+        connections: [
+          {
+            slug: "github-personal",
+            label: "GitHub (personal)",
+            color: "#2da44e",
+            total: 42,
+            days: [
+              { date: "2026-07-09", count: 2 },
+              { date: "2026-07-10", count: 5 },
+              { date: "2026-07-11", count: 8 },
+              { date: "2025-12-15", count: 3 },
+            ],
+          },
+          {
+            slug: "gitlab-work",
+            label: "GitLab (work)",
+            color: "#fc6d26",
+            total: 18,
+            days: [
+              { date: "2026-07-10", count: 4 },
+              { date: "2026-07-11", count: 3 },
+              { date: "2025-11-20", count: 6 },
+            ],
+          },
+        ],
+      };
+
+      const origFetch = window.fetch;
+      window.fetch = async (input) => {
+        const url = typeof input === "string" ? input : input.url;
+        if (url.includes("/api/profile/")) {
+          return new Response(JSON.stringify(FIXTURE), {
+            status: 200,
+            headers: { "Content-Type": "application/json" },
+          });
+        }
+        return origFetch(input);
+      };
+
+      await import("./dist/widget.js");
+    </script>
+  </body>
+</html>
