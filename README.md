@@ -45,15 +45,27 @@ pnpm --filter web e2e        # Playwright E2E (starts dev server automatically)
 
 ## Deploy to Railway
 
-1. Create a Railway project and connect this repo.
-2. Railway picks up `railway.json` and builds via the root `Dockerfile`.
-3. Attach a volume mounted at `/data`.
-4. Set environment variables from `.env.example` in the Railway dashboard:
+Production deployment is owned by GitHub Actions. The `CI` workflow runs lint,
+unit and integration tests, the migration test, the production build, and
+Playwright E2E tests. A successful `main` workflow then triggers `Deploy
+production`, which deploys that exact commit to Railway. Disable Railway's
+repository-triggered auto-deploy so changes cannot bypass these checks.
+
+1. Create a Railway project and service for this repo. Railway builds via the
+   root `Dockerfile` and reads deployment settings from `railway.json`.
+2. Attach a volume mounted at `/data`.
+3. Set environment variables from `.env.example` in the Railway dashboard:
    - `DATABASE_PATH=/data/contribstack.db`
    - `AUTH_URL` to your production domain
    - `ENCRYPTION_KEY`, `AUTH_SECRET`, GitHub OAuth credentials
    - R2 credentials for Litestream backup (`R2_ENDPOINT`, `R2_BUCKET`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`)
-5. Deploy. On first boot, `docker-entrypoint.sh` restores the DB from R2 if missing, then starts Next.js under Litestream replication.
+4. Create a GitHub environment named `production` with:
+   - Secret `RAILWAY_TOKEN`: a token scoped to the Railway project.
+   - Variable `RAILWAY_SERVICE_ID`: the target Railway service ID.
+5. Push to `main`. After CI passes, GitHub Actions deploys the revision. On
+   startup, `docker-entrypoint.sh` restores the DB from R2 if missing, applies
+   committed Drizzle migrations, and starts Next.js under Litestream
+   replication.
 
 ## Ingest API
 
