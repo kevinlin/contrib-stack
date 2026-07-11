@@ -20,8 +20,9 @@ ENV NEXT_TELEMETRY_DISABLED=1
 RUN pnpm build
 
 FROM node:22-alpine AS runtime
+ARG TARGETARCH
 RUN apk add --no-cache ca-certificates curl \
-  && curl -fsSL https://github.com/benbjohnson/litestream/releases/download/v0.3.13/litestream-v0.3.13-linux-amd64-static.tar.gz \
+  && curl -fsSL "https://github.com/benbjohnson/litestream/releases/download/v0.3.13/litestream-v0.3.13-linux-${TARGETARCH}.tar.gz" \
     | tar xz -C /usr/local/bin
 WORKDIR /app
 
@@ -30,6 +31,8 @@ ENV PORT=3000
 ENV HOSTNAME=0.0.0.0
 
 COPY --from=build /app/apps/web/.next/standalone ./apps/web/.next/standalone
+COPY --from=build /app/apps/web/drizzle ./apps/web/.next/standalone/drizzle
+COPY --from=build /app/apps/web/scripts/migrate.mjs ./apps/web/.next/standalone/migrate.mjs
 COPY --from=build /app/apps/web/.next/static ./apps/web/.next/static
 COPY --from=build /app/apps/web/public ./apps/web/public
 

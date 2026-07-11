@@ -137,7 +137,8 @@ git commit -m "feat: add deployment health check"
 
 **Files:**
 - Create: `apps/web/scripts/migrate.mjs`
-- Create: `apps/web/scripts/migrate.test.mjs`
+- Create: `apps/web/scripts/migrate.node-test.mjs`
+- Create: `.dockerignore`
 - Modify: `apps/web/package.json`
 - Modify: `Dockerfile`
 - Modify: `docker-entrypoint.sh`
@@ -148,7 +149,7 @@ git commit -m "feat: add deployment health check"
 
 - [ ] **Step 1: Write the failing migration integration test**
 
-Create `apps/web/scripts/migrate.test.mjs`:
+Create `apps/web/scripts/migrate.node-test.mjs`:
 
 ```js
 import assert from "node:assert/strict";
@@ -194,7 +195,7 @@ test("applies migrations to an empty database and can run again", () => {
 
 - [ ] **Step 2: Run the test and verify it fails**
 
-Run: `cd apps/web && node --test scripts/migrate.test.mjs`
+Run: `cd apps/web && node --test scripts/migrate.node-test.mjs`
 
 Expected: FAIL because `scripts/migrate.mjs` does not exist.
 
@@ -227,7 +228,7 @@ Add to `apps/web/package.json`:
 
 ```json
 "migrate": "node scripts/migrate.mjs",
-"test:migrate": "node --test scripts/migrate.test.mjs"
+"test:migrate": "node --test scripts/migrate.node-test.mjs"
 ```
 
 - [ ] **Step 4: Run the migration test twice**
@@ -280,7 +281,7 @@ Expected: test passes; image builds successfully and contains `migrate.mjs` and 
 - [ ] **Step 8: Commit**
 
 ```bash
-git add apps/web/scripts/migrate.mjs apps/web/scripts/migrate.test.mjs apps/web/package.json Dockerfile docker-entrypoint.sh
+git add .dockerignore apps/web/scripts/migrate.mjs apps/web/scripts/migrate.node-test.mjs apps/web/package.json Dockerfile docker-entrypoint.sh
 git commit -m "fix: run database migrations before startup"
 ```
 

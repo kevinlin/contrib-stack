@@ -1,0 +1,15 @@
+.git
+.worktrees
+.pnpm-store
+node_modules
+**/node_modules
+.next
+**/.next
+dist
+**/dist
+.env
+.env.local
+*.db
+*.db-journal
+playwright-report
+test-results

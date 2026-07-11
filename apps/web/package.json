@@ -7,7 +7,9 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
+    "migrate": "node scripts/migrate.mjs",
     "test": "vitest run",
+    "test:migrate": "node --test scripts/migrate.node-test.mjs",
     "e2e": "playwright test"
   },
   "dependencies": {
