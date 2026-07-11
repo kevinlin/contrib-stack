@@ -19,6 +19,7 @@ function syncWidgetToPublic(): string | null {
 const widgetHash = syncWidgetToPublic();
 
 const nextConfig: NextConfig = {
+  output: "standalone",
   async headers() {
     const cacheControl = widgetHash
       ? `public, max-age=31536000, immutable`
