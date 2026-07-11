@@ -1,8 +1,18 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { FormEvent, useEffect, useState } from "react";
+import { FormEvent, useState, useSyncExternalStore } from "react";
 import { HANDLE_REGEX, RESERVED_HANDLES } from "@/lib/handle";
+
+const subscribeToTimezone = () => () => {};
+
+export function getTimezone(): string {
+  return Intl.DateTimeFormat().resolvedOptions().timeZone;
+}
+
+export function getServerTimezone(): string {
+  return "UTC";
+}
 
 function validateHandleClient(handle: string): string | null {
   if (!HANDLE_REGEX.test(handle)) {
@@ -17,13 +27,13 @@ function validateHandleClient(handle: string): string | null {
 export default function WelcomePage() {
   const router = useRouter();
   const [handle, setHandle] = useState("");
-  const [timezone, setTimezone] = useState("UTC");
+  const timezone = useSyncExternalStore(
+    subscribeToTimezone,
+    getTimezone,
+    getServerTimezone,
+  );
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
-
-  useEffect(() => {
-    setTimezone(Intl.DateTimeFormat().resolvedOptions().timeZone);
-  }, []);
 
   async function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
