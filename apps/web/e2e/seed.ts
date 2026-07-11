@@ -1,4 +1,5 @@
-import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync, copyFileSync } from "node:fs";
+import { execSync } from "node:child_process";
 import path from "node:path";
 import type { FullConfig } from "@playwright/test";
 import Database from "better-sqlite3";
@@ -19,7 +20,6 @@ export const E2E_ENV = {
   AUTH_SECRET: "test-auth-secret-for-e2e-tests",
   AUTH_GITHUB_ID: "test",
   AUTH_GITHUB_SECRET: "test",
-  NODE_ENV: "development",
 } as const;
 
 export const API_KEY = "csk_testkey123456789012345678901234";
@@ -231,5 +231,18 @@ export function loadFixtures(): E2EFixtures {
 }
 
 export default async function globalSetup(_config: FullConfig): Promise<void> {
+  const monorepoRoot = path.join(WEB_ROOT, "../..");
+  execSync("pnpm --filter widget build", {
+    cwd: monorepoRoot,
+    stdio: "inherit",
+  });
+
+  const widgetSrc = path.join(monorepoRoot, "packages/widget/dist/widget.js");
+  const widgetDest = path.join(WEB_ROOT, "public/widget.js");
+  if (!existsSync(widgetSrc)) {
+    throw new Error(`Widget bundle missing at ${widgetSrc}`);
+  }
+  copyFileSync(widgetSrc, widgetDest);
+
   seedDatabase();
 }

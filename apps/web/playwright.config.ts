@@ -17,8 +17,7 @@ export default defineConfig({
     trace: "on-first-retry",
   },
   webServer: {
-    command:
-      "pnpm --filter widget build && pnpm --filter web exec next dev --port 3000",
+    command: "pnpm --filter web exec next dev --port 3000",
     cwd: monorepoRoot,
     url: "http://localhost:3000",
     reuseExistingServer: !process.env.CI,

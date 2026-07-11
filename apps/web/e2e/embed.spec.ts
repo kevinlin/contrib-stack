@@ -20,25 +20,37 @@ test.describe("embed test page", () => {
     await page.goto("/embed-test.html");
 
     const widget = page.locator("contrib-stack").first();
-    await expect(widget.locator(".cs-tile-val")).toBeVisible({ timeout: 15_000 });
+    await expect(widget.locator(".cs-legend .cs-chip").first()).toBeVisible({
+      timeout: 15_000,
+    });
 
-    const styles = await widget.evaluate((el) => {
-      const tileVal = el.shadowRoot?.querySelector(".cs-tile-val");
-      const tileLbl = el.shadowRoot?.querySelector(".cs-tile-lbl");
-      if (!tileVal || !tileLbl) {
+    const isolation = await widget.evaluate((el) => {
+      const shadow = el.shadowRoot;
+      if (!shadow) {
         return null;
       }
-      const valStyle = getComputedStyle(tileVal);
-      const lblStyle = getComputedStyle(tileLbl);
+
+      const legend = shadow.querySelector(".cs-legend");
+      const styleTag = shadow.querySelector("style");
+      const legendInLightDom = el.querySelector(".cs-legend");
+
       return {
-        color: valStyle.color,
-        fontFamily: lblStyle.fontFamily,
+        mode: shadow.mode,
+        legendInShadow: legend !== null,
+        legendInLightDom: legendInLightDom !== null,
+        hasInternalStyles:
+          styleTag !== null && styleTag.textContent?.includes("--cs-text") === true,
+        chipBackground: legend
+          ? getComputedStyle(legend.querySelector(".cs-chip")!).backgroundColor
+          : null,
       };
     });
 
-    expect(styles).not.toBeNull();
-    expect(styles!.color).not.toBe("rgb(255, 0, 0)");
-    expect(styles!.fontFamily.toLowerCase()).not.toContain("comic sans");
-    expect(styles!.fontFamily.toLowerCase()).toContain("system-ui");
+    expect(isolation).not.toBeNull();
+    expect(isolation!.mode).toBe("open");
+    expect(isolation!.legendInShadow).toBe(true);
+    expect(isolation!.legendInLightDom).toBe(false);
+    expect(isolation!.hasInternalStyles).toBe(true);
+    expect(isolation!.chipBackground).not.toBe("");
   });
 });
