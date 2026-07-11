@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>ContribStack — Embed Test</title>
+    <style>
+      /* Intentionally aggressive host styles — must NOT leak into the widget (Shadow DOM isolation). */
+      * {
+        color: red !important;
+        font-family: "Comic Sans MS", cursive !important;
+      }
+
+      body {
+        max-width: 960px;
+        margin: 0 auto;
+        padding: 2rem 1.5rem;
+        line-height: 1.5;
+      }
+
+      h1 {
+        font-size: 1.5rem;
+        margin-bottom: 0.5rem;
+      }
+
+      p {
+        margin: 0.75rem 0;
+      }
+
+      .widgets {
+        display: flex;
+        flex-direction: column;
+        gap: 2rem;
+        margin-top: 2rem;
+      }
+
+      .widget-block {
+        padding: 1.25rem;
+        border: 2px dashed #ccc;
+        border-radius: 8px;
+      }
+
+      .widget-block h2 {
+        font-size: 1rem;
+        margin: 0 0 1rem;
+      }
+
+      contrib-stack {
+        display: block;
+      }
+    </style>
+    <script src="/widget.js" async></script>
+  </head>
+  <body>
+    <h1>ContribStack Embed Test</h1>
+    <p>
+      This page simulates a third-party website embedding the ContribStack widget.
+      It loads <code>/widget.js</code> and mounts two <code>&lt;contrib-stack&gt;</code>
+      instances — the same way an external blog or portfolio would.
+    </p>
+    <p>
+      The host page applies aggressive CSS (<code>color: red</code>,
+      <code>font-family: Comic Sans MS</code>) to every element. If Shadow DOM
+      isolation works, the widgets should still render with their own theme
+      colors and typography.
+    </p>
+
+    <div class="widgets">
+      <section class="widget-block">
+        <h2>Default — light theme, all sources</h2>
+        <contrib-stack user="demo" theme="light"></contrib-stack>
+      </section>
+
+      <section class="widget-block">
+        <h2>Dark theme — filtered to github-personal</h2>
+        <contrib-stack
+          user="demo"
+          theme="dark"
+          sources="github-personal"
+        ></contrib-stack>
+      </section>
+    </div>
+  </body>
+</html>
