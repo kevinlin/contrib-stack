@@ -141,9 +141,7 @@ Ran the full verification suite (lint, tests, migration, build, E2E), confirmed 
 
 ## Changelog
 
-- 2026-07-13 — **Compacted post-implementation.** Removed step-by-step implementation tasks, file-by-file diffs, code snippets, interface definitions, and verification command lists now that the feature has shipped. Merged `plan_production-homepage-shutdown.md` tasks (16–18) into this plan. Preserved Goal, Global Constraints, per-task intent paragraphs, MVP Success-Criteria Results, and deployment evidence. Original plan is recoverable via git history.
-
-### 2026-07-12 — Fix external embedding: auto-detect API origin from script URL
+- 2026-07-12 — **Fix external embedding**: auto-detect API origin from script URL
 
 **Problem:** The widget's `apiBase` defaulted to `location.origin` when no `api` attribute was specified. On external sites, `location.origin` resolves to the embedding page's domain (e.g. `https://myblog.com`), causing the profile fetch to target the wrong server. The design doc's canonical snippet (`<script src="https://contribstack.app/widget.js">` + `<contrib-stack user="...">`) would fail on any page not hosted on contribstack.app.
 
@@ -153,3 +151,5 @@ Ran the full verification suite (lint, tests, migration, build, E2E), confirmed 
 - `packages/widget/src/contrib-stack.ts` — added `SCRIPT_ORIGIN` constant and updated `apiBase` getter
 - `apps/web/public/widget.js` — rebuilt
 - `docs/specs/design.md` — expanded §9 with detailed embedding instructions, attribute reference, API origin resolution docs, and a full HTML example
+
+- 2026-07-13 — **Compacted post-implementation.** Removed step-by-step implementation tasks, file-by-file diffs, code snippets, interface definitions, and verification command lists now that the feature has shipped. Merged `plan_production-homepage-shutdown.md` tasks (16–18) into this plan. Preserved Goal, Global Constraints, per-task intent paragraphs, MVP Success-Criteria Results, and deployment evidence. Original plan is recoverable via git history.
