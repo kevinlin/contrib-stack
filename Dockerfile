@@ -31,13 +31,15 @@ ENV PORT=3000
 ENV HOSTNAME=0.0.0.0
 
 COPY --from=build /app/apps/web/.next/standalone ./apps/web/.next/standalone
+COPY --from=build /app/apps/web/node_modules/drizzle-orm ./apps/web/.next/standalone/node_modules/drizzle-orm
 COPY --from=build /app/apps/web/drizzle ./apps/web/.next/standalone/drizzle
 COPY --from=build /app/apps/web/scripts/migrate.mjs ./apps/web/.next/standalone/migrate.mjs
-COPY --from=build /app/apps/web/.next/static ./apps/web/.next/static
-COPY --from=build /app/apps/web/public ./apps/web/public
+COPY --from=build /app/apps/web/.next/static ./apps/web/.next/standalone/apps/web/.next/static
+COPY --from=build /app/apps/web/public ./apps/web/.next/standalone/apps/web/public
 
 COPY litestream.yml docker-entrypoint.sh ./
-RUN chmod +x docker-entrypoint.sh
+RUN ln -s .pnpm/node_modules/better-sqlite3 ./apps/web/.next/standalone/node_modules/better-sqlite3 \
+  && chmod +x docker-entrypoint.sh
 
 EXPOSE 3000
 ENTRYPOINT ["./docker-entrypoint.sh"]
