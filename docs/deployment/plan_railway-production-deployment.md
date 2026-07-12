@@ -10,7 +10,7 @@
 
 ## Global Constraints
 
-- Read `docs/specs/design.md` and `docs/superpowers/specs/2026-07-11-railway-production-deployment-design.md` before execution.
+- Read `docs/specs/design.md` and `docs/deployment/design_railway-production-deployment.md` before execution.
 - Run exactly one Railway application replica.
 - Mount the Railway volume at `/data` and set `DATABASE_PATH=/data/contribstack.db`.
 - Never print or commit secret values.
