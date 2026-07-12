@@ -26,4 +26,5 @@ fi
 
 cd /app/apps/web/.next/standalone
 node migrate.mjs
-exec litestream replicate -exec "node apps/web/server.js" -config /app/litestream.yml
+exec /app/scripts/normalize-exit-status.sh \
+  litestream replicate -exec "node apps/web/server.js" -config /app/litestream.yml

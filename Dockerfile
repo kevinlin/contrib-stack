@@ -38,8 +38,9 @@ COPY --from=build /app/apps/web/.next/static ./apps/web/.next/standalone/apps/we
 COPY --from=build /app/apps/web/public ./apps/web/.next/standalone/apps/web/public
 
 COPY litestream.yml docker-entrypoint.sh ./
+COPY scripts/normalize-exit-status.sh ./scripts/normalize-exit-status.sh
 RUN ln -s .pnpm/node_modules/better-sqlite3 ./apps/web/.next/standalone/node_modules/better-sqlite3 \
-  && chmod +x docker-entrypoint.sh
+  && chmod +x docker-entrypoint.sh scripts/normalize-exit-status.sh
 
 EXPOSE 3000
 ENTRYPOINT ["./docker-entrypoint.sh"]
