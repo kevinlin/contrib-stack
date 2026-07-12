@@ -1,7 +1,5 @@
 # ContribStack MVP — Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
-
 **Goal:** Ship the ContribStack MVP per [design.md](design.md): hosted multi-user activity profiles with an overlaid per-connection heatmap, GitHub + GitLab connectors, generic ingest API, and an embeddable web-component widget.
 
 **Architecture:** pnpm monorepo — `apps/web` (Next.js App Router: SSR pages, API routes, Auth.js), `packages/widget` (framework-free web component, Vite lib build), `packages/connectors` (pure source-pull logic). SQLite (Drizzle + better-sqlite3) on a Railway volume, Litestream → R2 backup.
@@ -26,296 +24,85 @@
 
 ### Task 1: Monorepo scaffold
 
-**Files:**
-- Create: `package.json`, `pnpm-workspace.yaml`, `tsconfig.base.json`, `.gitignore`, `.nvmrc`
-- Create: `apps/web` via `create-next-app` (App Router, TS, no Tailwind prompt — accept defaults, add later if needed)
-- Create: `packages/widget/{package.json,tsconfig.json,vite.config.ts,src/index.ts}`
-- Create: `packages/connectors/{package.json,tsconfig.json,src/index.ts}`
-- Create: `vitest.workspace.ts`
-
-**Steps:**
-- [ ] Scaffold workspace: root `package.json` (private, scripts: `dev`, `build`, `test`, `lint`), `pnpm-workspace.yaml` listing `apps/*`, `packages/*`.
-- [ ] `pnpm create next-app apps/web` (TS, App Router, ESLint); wire `tsconfig.base.json` extends into all three packages.
-- [ ] Stub `packages/widget/src/index.ts` (`export const VERSION = "0.0.1"`) with Vite lib-mode config (single IIFE output `widget.js`, no externals); stub `packages/connectors/src/index.ts`.
-- [ ] Add Vitest workspace config covering `apps/web`, `packages/*`; one smoke test per package (e.g. `expect(VERSION).toBe("0.0.1")`).
-- [ ] Verify: `pnpm install && pnpm test && pnpm build` all pass.
-- [ ] Commit: `chore: scaffold pnpm monorepo (web, widget, connectors)`
+Scaffolded the pnpm monorepo with three packages: `apps/web` (Next.js App Router via `create-next-app`), `packages/widget` (Vite lib-mode IIFE build), and `packages/connectors` (pure source-pull logic). Set up `vitest.workspace.ts` covering all packages with smoke tests.
 
 ### Task 2: Database schema + crypto util
 
-**Files:**
-- Create: `apps/web/src/db/schema.ts`, `apps/web/src/db/client.ts`, `apps/web/drizzle.config.ts`
-- Create: `apps/web/src/lib/crypto.ts`
-- Test: `apps/web/src/db/schema.test.ts`, `apps/web/src/lib/crypto.test.ts`
-
-**Interfaces (produces):**
-
-```ts
-// schema.ts — Drizzle tables
-users:        { id, githubId, handle /*unique*/, timezone, isPrivate, createdAt }
-connections:  { id, userId, slug, type: 'github'|'gitlab'|'ingest', label, color,
-                baseUrl?, credentialEncrypted?, apiKeyHash?, status: 'ok'|'backfilling'|'error',
-                lastSyncedAt?, createdAt }   // unique (userId, slug)
-dailyCounts:  { connectionId, date, count }  // composite PK (connectionId, date)
-// + Auth.js tables via @auth/drizzle-adapter
-
-// crypto.ts
-encryptSecret(plain: string): string   // "iv:tag:cipher" base64, AES-256-GCM, key from ENCRYPTION_KEY
-decryptSecret(sealed: string): string
-hashApiKey(key: string): string        // sha256 hex
-```
-
-**Steps:**
-- [ ] Failing tests: schema round-trip (insert user → connection → daily_counts upsert; composite-PK conflict replaces count), crypto round-trip + tamper detection (flipped byte throws), `hashApiKey` determinism.
-- [ ] Implement schema, in-memory SQLite client for tests (`:memory:`), file path from `DATABASE_PATH` in prod; generate initial migration.
-- [ ] Implement `crypto.ts` with node:crypto AES-256-GCM.
-- [ ] Verify: `pnpm --filter web test` green.
-- [ ] Commit: `feat: db schema, migrations, secret encryption`
+Implemented the Drizzle ORM schema (`users`, `connections`, `daily_counts` with composite PK) and the in-memory SQLite client for tests. Built AES-256-GCM encryption for PATs (`encryptSecret`/`decryptSecret`) and SHA-256 hashing for ingest API keys (`hashApiKey`). Generated the initial migration. See [design.md §4](design.md#4-data-model) for the schema.
 
 ### Task 3: Domain math (pure functions)
 
-**Files:**
-- Create: `apps/web/src/domain/{aggregate.ts,streaks.ts,calendar.ts}`
-- Test: `apps/web/src/domain/*.test.ts`
-
-**Interfaces (produces):**
-
-```ts
-type DayCount = { date: string; count: number }
-bucketByTimezone(timestampsIso: string[], tz: string): DayCount[]      // GitLab events → days (D17)
-yearWindows(fromIso: string, toIso: string): { from: string; to: string }[]  // ≤1y chunks for backfill
-computeStreaks(activeDates: Set<string>, today: string): { current: number; longest: number }
-// current streak alive if today OR yesterday active (GitHub convention)
-activeDayCount(activeDates: Set<string>, year?: number): number
-intensityLevel(count: number, nonZeroCounts: number[]): 0|1|2|3|4      // quartiles of the connection's own range
-unionActiveDates(layers: DayCount[][]): Set<string>                    // streak = any visible connection (D12)
-```
-
-**Steps:**
-- [ ] Failing tests first — cover: DST boundary bucketing (`Europe/Zurich`), year windows over multi-year span (exact boundaries, no overlap), streak alive-via-yesterday, streak broken today, single-day streak, empty set, intensity quartiles with ties, union across layers.
-- [ ] Implement; no I/O, no Date.now() (today passed in).
-- [ ] Verify: `pnpm --filter web test` green.
-- [ ] Commit: `feat: aggregation, streak, calendar domain functions`
+Built pure domain functions in `apps/web/src/domain/`: timezone bucketing (`bucketByTimezone`), year-window chunking for backfill, streak computation (current/longest, alive-via-yesterday convention), intensity-level quartiles, and cross-layer union for combined streak calculation. No I/O, no `Date.now()` — today is always passed in.
 
 ## Phase 2 — Connectors
 
 ### Task 4: Connector interface + GitHub connector
 
-**Files:**
-- Create: `packages/connectors/src/{types.ts,github.ts}`
-- Create: `packages/connectors/fixtures/github/*.json` (recorded GraphQL responses)
-- Test: `packages/connectors/src/github.test.ts`
-
-**Interfaces (produces):**
-
-```ts
-type ConnectorCreds = { token: string; baseUrl?: string }  // baseUrl: GHE / self-managed GitLab (D15)
-type AccountInfo = { username: string; accountCreatedAt: string }
-type DayCount = { date: string; count: number }
-
-interface Connector {
-  validate(creds: ConnectorCreds): Promise<AccountInfo>                     // throws ConnectorAuthError
-  backfill(creds: ConnectorCreds, since: string, until: string): AsyncIterable<DayCount[]>
-  refresh(creds: ConnectorCreds, days: number): Promise<DayCount[]>         // trailing window
-}
-export const githubConnector: Connector
-```
-
-**Steps:**
-- [ ] Failing tests against fixtures (fetch mocked): `validate` returns login + createdAt; bad token → `ConnectorAuthError`; `backfill` walks year windows via `contributionsCollection(from,to)` and yields pre-bucketed days as-is (D17); `refresh(35)` returns trailing window; baseUrl swaps the GraphQL endpoint.
-- [ ] Implement with plain `fetch`; no retries beyond one 429/5xx backoff.
-- [ ] Verify: `pnpm --filter connectors test` green; no live network in CI (assert via mocked fetch).
-- [ ] Commit: `feat: connector interface + GitHub connector`
+Defined the `Connector` interface (`validate`, `backfill`, `refresh`) in `packages/connectors/src/types.ts` and implemented the GitHub connector using GraphQL `contributionsCollection`. Pre-bucketed day counts are taken as-is (D17). Backfill iterates year windows back to account creation. Tests use recorded fixture responses with mocked fetch. See [design.md §6](design.md#6-connectors) for the interface.
 
 ### Task 5: GitLab connector
 
-**Files:**
-- Create: `packages/connectors/src/gitlab.ts`
-- Create: `packages/connectors/fixtures/gitlab/*.json`
-- Test: `packages/connectors/src/gitlab.test.ts`
-
-**Interfaces:** consumes `Connector` types from Task 4; produces `gitlabConnector: Connector` with an extra constructor arg: `makeGitlabConnector(tz: string)` — events are raw timestamps, bucketed via the user's timezone (Task 3 `bucketByTimezone`).
-
-**Steps:**
-- [ ] Failing tests: `validate` via `GET /user` (returns username + created_at); `backfill` pages `GET /users/:id/events?after&before` until empty and buckets by tz; `refresh` pulls trailing days; baseUrl points at self-managed instance; pagination fixture ≥3 pages.
-- [ ] Implement; native event granularity, no normalization (D6).
-- [ ] Verify: `pnpm --filter connectors test` green.
-- [ ] Commit: `feat: GitLab connector with timezone bucketing`
+Implemented the GitLab connector via `makeGitlabConnector(tz)`. Pages `/users/:id/events`, buckets raw timestamps into the user's timezone server-side. Supports gitlab.com and self-managed instances via `baseUrl`. Native event granularity, no normalization (D6).
 
 ## Phase 3 — Web app core
 
 ### Task 6: Auth + handle claim
 
-**Files:**
-- Create: `apps/web/src/auth.ts` (Auth.js config, GitHub provider, Drizzle adapter)
-- Create: `apps/web/src/app/api/auth/[...nextauth]/route.ts`
-- Create: `apps/web/src/app/welcome/page.tsx` (handle claim plus timezone auto-detect form), `apps/web/src/app/api/settings/handle/route.ts`
-- Test: `apps/web/src/app/api/settings/handle/route.test.ts`
-
-**Steps:**
-- [ ] Failing tests for handle claim route: rejects taken handle, rejects invalid format (`^[a-z0-9-]{3,30}$`, reserved list: `api settings welcome embed widget admin`), sets handle once (immutable after claim).
-- [ ] Implement Auth.js GitHub OAuth (identity only, D8); first sign-in without handle redirects to `/welcome`; form posts handle + browser-detected timezone.
-- [ ] Verify: tests green; manual `pnpm dev` sign-in flow works with a dev OAuth app.
-- [ ] Commit: `feat: GitHub OAuth sign-in and handle claim`
+Set up Auth.js GitHub OAuth with the Drizzle adapter. New users land with a `__pending__` handle and are redirected to `/welcome` to claim one. Handle validation enforces `^[a-z0-9-]{3,30}$` with a reserved word list (`api`, `settings`, `welcome`, `embed`, `widget`, `admin`). Handle is immutable after claim.
 
 ### Task 7: Connection CRUD + ingest key issuance
 
-**Files:**
-- Create: `apps/web/src/app/api/settings/connections/route.ts` (+ `[id]/route.ts`)
-- Create: `apps/web/src/lib/colors.ts` (signature palette + auto-shade for same-platform duplicates, D14)
-- Create: `apps/web/src/lib/slug.ts`
-- Test: `apps/web/src/app/api/settings/connections/route.test.ts`, `apps/web/src/lib/colors.test.ts`
-
-**Interfaces (produces):** REST used by settings UI (Task 11):
-`POST /api/settings/connections` body `{type, label, baseUrl?, token?}` →
-- git types: validates token via connector `validate()`, stores `encryptSecret(token)`, kicks backfill (Task 8), returns connection.
-- ingest type: generates `csk_` + 32 hex key, stores `hashApiKey(key)`, returns `{connection, apiKey}`; key appears only in this response.
-`PATCH` label/color, `DELETE`, `POST [id]/resync`.
-
-**Steps:**
-- [ ] Failing tests: create git connection encrypts token (raw token absent from DB dump), invalid PAT → 422 with connector error message; ingest create returns plaintext key once, stores only hash; second GitHub connection auto-gets distinct shade; slug derived from label, unique per user (`github-work`), collision suffixes `-2`; delete cascades daily_counts.
-- [ ] Implement; token validation calls connector `validate` with 5s timeout.
-- [ ] Verify: tests green.
-- [ ] Commit: `feat: connection CRUD, PAT encryption, ingest key issuance`
+Implemented REST connection management at `/api/settings/connections`: git connections validate the PAT via the connector, encrypt and store it; ingest connections generate a `csk_` key (shown once, stored as SHA-256 hash). Slug derived from label, unique per user with collision suffixes. Auto-shade assigns distinguishable colors for same-platform duplicates (D14). See [design.md §5](design.md#5-api-surface) for the API surface.
 
 ### Task 8: Sync engine
 
-**Files:**
-- Create: `apps/web/src/sync/{backfill.ts,refresh.ts,mutex.ts}`
-- Test: `apps/web/src/sync/*.test.ts`
-
-**Interfaces (produces):**
-
-```ts
-startBackfill(connectionId: string): void      // fire-and-forget; status backfilling→ok|error
-refreshIfStale(connectionId: string): void     // no-op if lastSyncedAt <10min or mutex held;
-                                               // else background-refresh trailing 35 days
-resync(connectionId: string): Promise<void>    // wipe daily_counts for connection, full backfill
-```
-
-**Steps:**
-- [ ] Failing tests (fake connector + in-memory DB): backfill iterates year windows since account creation and upserts, sets `ok` on success and `error` on connector throw (partial data kept); refresh skips when fresh, refreshes when stale, mutex prevents concurrent refresh of same connection (spy call count = 1 under 10 parallel calls); upsert idempotency — re-running refresh doesn't double counts (D16 replace semantics).
-- [ ] Implement with in-process `Map<string, Promise>` mutex (single node, D10); serve-stale philosophy: sync functions never block callers.
-- [ ] Verify: tests green.
-- [ ] Commit: `feat: backfill + stale-while-revalidate sync engine`
+Built the fire-and-forget backfill loop (iterates connector year windows, upserts into `daily_counts`, transitions status `backfilling` → `ok`/`error`), stale-while-revalidate refresh (trailing 35 days if `last_synced_at` > 10 min), and in-process `Map<string, Promise>` mutex to prevent concurrent refresh stampedes. Sync functions never block callers (D10). See [design.md §7](design.md#7-sync-engine) for the design.
 
 ### Task 9: Public profile API + ingest API
 
-**Files:**
-- Create: `apps/web/src/app/api/profile/[handle]/route.ts`
-- Create: `apps/web/src/app/api/ingest/route.ts`
-- Create: `apps/web/src/lib/rate-limit.ts` (in-memory token bucket)
-- Test: both `route.test.ts` files
-
-**Interfaces (produces):** the wire contract the widget (Task 10) consumes:
-
-```jsonc
-// GET /api/profile/:handle?year=2026   (open CORS; omit year → rolling 365d; ?range=all → lifetime)
-{
-  "handle": "kevinlin",
-  "years": [2026, 2025],
-  "connections": [
-    { "slug": "github-personal", "label": "GitHub (personal)", "color": "#2da44e",
-      "total": 1234, "days": [{ "date": "2026-07-11", "count": 5 }] }
-  ]
-}
-// POST /api/ingest  Authorization: Bearer csk_...   body: [{ "date": "2026-07-11", "count": 12 }]
-// → { "upserted": 1 }
-```
-
-**Steps:**
-- [ ] Failing tests — profile: unknown handle → 404; private profile → identical 404 body/headers (D8); year filter; `range=all` returns lifetime days; `Access-Control-Allow-Origin: *`; response triggers `refreshIfStale` per connection (spy). Ingest: bad/missing key → 401; malformed date / negative count / >5000 rows → 400, nothing written (atomic); valid upsert replaces existing count; over-rate-limit → 429.
-- [ ] Implement; ingest wrapped in one transaction; rate limit 60 req/min per key.
-- [ ] Verify: tests green; `curl` smoke against `pnpm dev`.
-- [ ] Commit: `feat: public profile JSON API + ingest API`
+Implemented the public profile JSON API (`GET /api/profile/:handle` with open CORS, year/range filtering, private → 404 indistinguishable from unknown) and the ingest API (`POST /api/ingest` with Bearer auth, atomic upsert, rate limiting at 60 req/min per key). Profile responses trigger `refreshIfStale` per connection.
 
 ## Phase 4 — UI
 
 ### Task 10: Heatmap web component
 
-**Files:**
-- Create: `packages/widget/src/{contrib-stack.ts,render.ts,layout.ts,tooltip.ts,theme.ts,api.ts}`
-- Test: `packages/widget/src/{layout.test.ts,render.test.ts}` (jsdom)
-- Create: `packages/widget/scripts/size-check.mjs`
-
-**Interfaces:** consumes Task 9 profile JSON. Produces `<contrib-stack>` custom element:
-
-```html
-<contrib-stack user="kevinlin" theme="auto" range="1y" sources="github-personal,gitlab-work" api="https://contribstack.app"></contrib-stack>
-<!-- range: "1y" (default, rolling year) | "2026" (calendar year) | "all" (lifetime) -->
-
-```
-
-- Shadow DOM; 53-week SVG grid; **split-cell**: N active layers that day → N equal vertical stripes, connection color, shade = `intensityLevel` (Task 3 logic duplicated locally since the widget has zero deps; keep the function tiny and test both).
-- Legend chips per connection (swatch + label + total): click = toggle layer; chips filter stat tiles too.
-- Stat tiles: current streak, longest streak, active days, per-connection totals (computed over **visible** layers).
-- Tooltip: hover (desktop) / tap (touch) with per-connection counts.
-- Responsive: fixed cell size, horizontal scroll auto-positioned to latest; `theme` light/dark/auto via `prefers-color-scheme`.
-- Click-through: cells/header link to `{api}/{user}` when embedded (attribute `link="off"` disables — profile page uses that).
-
-**Steps:**
-- [ ] Failing layout tests: 53-column grid math for a leap year, split-cell stripe geometry (1/2/3 layers), intensity levels, toggle recompute of tiles/streaks.
-- [ ] Implement component; no framework, no fetch polyfill.
-- [ ] Size gate: `size-check.mjs` fails build if `dist/widget.js` gzip > 15 KB; wire into `pnpm --filter widget build`.
-- [ ] Verify: widget tests green; build passes size gate; manual check via a static `packages/widget/dev.html` against a JSON fixture.
-- [ ] Commit: `feat: contrib-stack heatmap web component`
+Built the `<contrib-stack>` custom element in `packages/widget/`: Shadow DOM, 53-week SVG grid with split-cell rendering (N active layers → N vertical stripes), legend chips with toggle/isolate, stat tiles (streaks, active days, totals recomputed per visible layers), tooltip (hover/tap), responsive horizontal scroll, light/dark/auto theme, and click-through to profile. Bundle: 5.31 KB gzip (budget: 15 KB). See [design.md §9](design.md#9-embed-widget) for the embed spec.
 
 ### Task 11: Profile page + settings UI
 
-**Files:**
-- Create: `apps/web/src/app/[handle]/page.tsx` (SSR: fetch profile server-side, mount widget with `link="off"`, year list nav, "All" tab)
-- Create: `apps/web/src/app/settings/page.tsx` (connections list/create forms incl. base-URL field, color picker, resync + delete buttons, backfill status polling, error-status banner per §11, privacy toggle, ingest-key reveal-once modal)
-- Create: `apps/web/src/app/api/settings/privacy/route.ts`
-- Test: `apps/web/src/app/[handle]/page.test.tsx` (RSC render smoke), privacy route test
-- Modify: `apps/web/next.config.ts` (serve `widget.js` — copy from `packages/widget/dist` at build, immutable cache header)
-
-**Steps:**
-- [ ] Failing tests: private profile page renders the same not-found UI as unknown handle; privacy toggle route flips flag; profile page passes year param through.
-- [ ] Implement pages; mobile: tiles 4→2 columns via CSS grid, heatmap container `overflow-x: auto` (D19).
-- [ ] Verify: tests green; `pnpm dev` manual pass — connect real GitHub PAT, watch backfill status, profile renders layers.
-- [ ] Commit: `feat: profile page, settings UI, widget serving`
+Built the SSR profile page (`/[handle]`) mounting the widget with `link="off"`, year navigation, and the settings UI with connection CRUD forms, backfill status polling, error banners, privacy toggle, and ingest-key reveal-once modal. `next.config.ts` copies `widget.js` from the widget package at build with content-hash cache busting.
 
 ### Task 12: Embed test page
 
-**Files:**
-- Create: `apps/web/public/embed-test.html` (plain HTML loading `/widget.js` + `<contrib-stack>`, simulating a third-party site)
-
-**Steps:**
-- [ ] Add page with two widget instances (default + `theme="dark" sources=` filtered) and a paragraph of host-page CSS that must not leak in (shadow-DOM check).
-- [ ] Verify manually: widget renders, toggles work, click-through navigates to profile; no CORS errors from a different origin (`python3 -m http.server` serving a copy).
-- [ ] Commit: `feat: embed test page`
+Added `apps/web/public/embed-test.html` with two widget instances (default and dark/filtered) plus host-page CSS to verify Shadow DOM isolation.
 
 ## Phase 5 — E2E + deploy
 
 ### Task 13: Playwright E2E
 
-**Files:**
-- Create: `apps/web/playwright.config.ts`, `apps/web/e2e/{profile.spec.ts,ingest.spec.ts,embed.spec.ts}`
-- Create: `apps/web/e2e/seed.ts` (direct-DB seed: user + 2 git connections with fixture counts + 1 ingest connection; session cookie injection instead of live OAuth)
-
-**Steps:**
-- [ ] Specs: seeded profile renders heatmap with 3 legend chips; chip toggle hides layer and updates tiles; year nav swaps data; `POST /api/ingest` with seeded key then reload → new counts visible; embed-test page renders widget; private toggle → profile 404s.
-- [ ] Verify: `pnpm --filter web e2e` green headless.
-- [ ] Commit: `test: Playwright E2E for profile, ingest, embed`
+Created E2E specs covering: seeded profile rendering with 3 legend chips, chip toggle, year navigation, ingest upsert visibility, embed page widget rendering, and private-profile 404 behavior. Direct-DB seed (`apps/web/e2e/seed.ts`) with session cookie injection instead of live OAuth.
 
 ### Task 14: Railway deploy + backups
 
-**Files:**
-- Create: `Dockerfile` (multi-stage: pnpm build → node runtime + litestream binary), `litestream.yml`, `docker-entrypoint.sh` (litestream restore-if-missing → `litestream replicate -exec "node server.js"`)
-- Create: `railway.json` (volume mount `/data`), `.env.example` (documented: `DATABASE_PATH`, `ENCRYPTION_KEY`, `AUTH_SECRET`, `AUTH_GITHUB_ID/SECRET`, `R2_*`, `PUBLIC_URL`)
-- Create: `README.md` (what it is, local dev quickstart, deploy steps, ingest API usage with curl example)
-
-**Steps:**
-- [ ] Local verify: `docker build` + run with a bind-mounted volume; sign-in, connect, profile — all work; kill container, restart, data persists; litestream replicates to a local MinIO or real R2 bucket.
-- [ ] Deploy to Railway; run success criteria 1–5 from design.md §2 against production.
-- [ ] Commit: `feat: dockerized Railway deploy with litestream backups`
+Created the multi-stage `Dockerfile` (pnpm build → node runtime + Litestream binary), `litestream.yml`, and `docker-entrypoint.sh` (restore-if-missing → migrate → replicate). Added `railway.json` with volume mount and health check, `.env.example`, and `README.md`. See [design.md §13](design.md#13-deployment) for the deployment architecture.
 
 ### Task 15: Success-criteria walkthrough
 
-**Steps:**
-- [ ] Execute design.md §2 goals 1–6 on production as a checklist; fix anything that fails (each fix = its own commit).
-- [ ] Record results at the bottom of this file (date + pass/fail per criterion).
-- [ ] Commit: `docs: record MVP success-criteria results`
+Executed [design.md §2](design.md#2-goals-and-non-goals) goals 1–6 against production and recorded results in the MVP Success-Criteria Results section below.
+
+## Phase 6 — Post-deploy fixes
+
+### Task 16: Production homepage
+
+Replaced the default Next.js starter page with a ContribStack landing page: product description, sign-in via Auth.js, and link to the example profile. Added a rendering test (`apps/web/src/app/page.test.tsx`), scoped CSS, and production metadata. See [design.md §14](design.md#14-homepage).
+
+### Task 17: Clean expected shutdowns
+
+Added `scripts/normalize-exit-status.sh` to translate exit code 143 (SIGTERM from Railway deployment rotation) to 0, preserving all other exit codes. Wired it into `docker-entrypoint.sh` to wrap Litestream. Node tests (`scripts/normalize-exit-status.test.mjs`) verify the normalization for exit codes 0, 143, and 42.
+
+### Task 18: Verify and deploy (homepage + shutdown)
+
+Ran the full verification suite (lint, tests, migration, build, E2E), confirmed clean Docker shutdown behavior, and deployed through GitHub Actions.
 
 ---
 
@@ -353,6 +140,8 @@ resync(connectionId: string): Promise<void>    // wipe daily_counts for connecti
 ---
 
 ## Changelog
+
+- 2026-07-13 — **Compacted post-implementation.** Removed step-by-step implementation tasks, file-by-file diffs, code snippets, interface definitions, and verification command lists now that the feature has shipped. Merged `plan_production-homepage-shutdown.md` tasks (16–18) into this plan. Preserved Goal, Global Constraints, per-task intent paragraphs, MVP Success-Criteria Results, and deployment evidence. Original plan is recoverable via git history.
 
 ### 2026-07-12 — Fix external embedding: auto-detect API origin from script URL
 
