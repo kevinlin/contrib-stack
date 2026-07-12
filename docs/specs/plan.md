@@ -349,3 +349,18 @@ resync(connectionId: string): Promise<void>    // wipe daily_counts for connecti
 - Widget bundle: 5.31 KB gzip (budget: 15 KB)
 - Full build: all 3 packages + Next.js app build green
 - Deployment work committed directly to `main`
+
+---
+
+## Changelog
+
+### 2026-07-12 — Fix external embedding: auto-detect API origin from script URL
+
+**Problem:** The widget's `apiBase` defaulted to `location.origin` when no `api` attribute was specified. On external sites, `location.origin` resolves to the embedding page's domain (e.g. `https://myblog.com`), causing the profile fetch to target the wrong server. The design doc's canonical snippet (`<script src="https://contribstack.app/widget.js">` + `<contrib-stack user="...">`) would fail on any page not hosted on contribstack.app.
+
+**Fix:** Added `SCRIPT_ORIGIN` detection in `packages/widget/src/contrib-stack.ts`. At script load time, `document.currentScript.src` is parsed to extract the origin of the script itself. The `apiBase` resolution order is now: explicit `api` attribute → script origin → `location.origin`. External embeds now work without an `api` attribute as long as the script is loaded from the ContribStack host.
+
+**Files changed:**
+- `packages/widget/src/contrib-stack.ts` — added `SCRIPT_ORIGIN` constant and updated `apiBase` getter
+- `apps/web/public/widget.js` — rebuilt
+- `docs/specs/design.md` — expanded §9 with detailed embedding instructions, attribute reference, API origin resolution docs, and a full HTML example

@@ -11,6 +11,17 @@ import { resolveTheme, themeCss } from "./theme";
 import { TooltipController } from "./tooltip";
 import type { ProfileData, RenderState, Theme } from "./types";
 
+const SCRIPT_ORIGIN = (() => {
+  try {
+    if (typeof document !== "undefined" && document.currentScript) {
+      return new URL((document.currentScript as HTMLScriptElement).src).origin;
+    }
+  } catch {
+    /* ignore malformed src */
+  }
+  return "";
+})();
+
 const OBSERVED = ["user", "theme", "range", "sources", "api", "link"] as const;
 
 export class ContribStack extends HTMLElement {
@@ -70,7 +81,8 @@ export class ContribStack extends HTMLElement {
 
   private get apiBase(): string {
     return (
-      this.getAttribute("api") ??
+      this.getAttribute("api") ||
+      SCRIPT_ORIGIN ||
       (typeof location !== "undefined" ? location.origin : "")
     );
   }

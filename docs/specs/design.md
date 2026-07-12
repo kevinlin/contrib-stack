@@ -88,14 +88,77 @@ Known limitation (documented, not solved): the server must be able to reach self
 
 ## 9. Embed widget
 
+### Quick start
+
+Add two lines to any HTML page:
+
 ```html
 <script src="https://contribstack.app/widget.js" async></script>
-<contrib-stack user="kevinlin" theme="auto" sources="github-personal,gitlab-work"></contrib-stack>
+<contrib-stack user="kevinlin"></contrib-stack>
 ```
 
-- Shadow DOM, inline SVG, auto-sizes to container. Attributes: `user` (required), `theme` (`light`|`dark`|`auto`), `sources` (optional filter by connection slug), `range` (default rolling year).
-- Fully interactive (toggles, tooltips) minus year navigation; any cell/header click goes to the profile page.
-- The profile page mounts the same component — one rendering path, no drift (D11).
+The widget auto-detects the ContribStack API origin from its own script URL — no extra configuration needed when loading from the canonical host.
+
+### Attributes
+
+| Attribute | Required | Default | Description |
+|-----------|----------|---------|-------------|
+| `user` | yes | — | The ContribStack handle to display |
+| `theme` | no | `auto` | `light`, `dark`, or `auto` (follows `prefers-color-scheme`) |
+| `sources` | no | all | Comma-separated connection slugs to display (e.g. `github-personal,gitlab-work`) |
+| `range` | no | `1y` | `1y` (rolling year), a 4-digit year (`2025`), or `all` (lifetime) |
+| `api` | no | script origin | Override the API base URL (see below) |
+| `link` | no | `on` | Set `off` to disable click-through to the profile page |
+
+### API origin resolution
+
+The widget determines where to fetch profile data in this priority order:
+
+1. **Explicit `api` attribute** — use when self-hosting or proxying: `<contrib-stack user="me" api="https://my-instance.example.com">`
+2. **Script origin** — automatically derived from the `<script src="...">` URL at load time. This is the standard path: loading the script from `https://contribstack.app/widget.js` makes all API calls go to `https://contribstack.app`.
+3. **Page origin** — fallback when the script origin cannot be determined (e.g. inline bundles). Uses `location.origin`.
+
+### Full external embedding example
+
+```html
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>My Portfolio</title>
+  <script src="https://contribstack.app/widget.js" async></script>
+</head>
+<body>
+  <h1>My Contributions</h1>
+
+  <!-- All sources, auto theme, rolling year -->
+  <contrib-stack user="kevinlin"></contrib-stack>
+
+  <!-- Filtered to one source, dark theme -->
+  <contrib-stack user="kevinlin" theme="dark" sources="github-personal"></contrib-stack>
+
+  <!-- Specific year, explicit API for a self-hosted instance -->
+  <contrib-stack user="kevinlin" range="2025" api="https://my-contribstack.example.com"></contrib-stack>
+</body>
+</html>
+```
+
+### How it works
+
+- The `<script>` registers a `<contrib-stack>` custom element. Any matching element in the DOM (present or future) upgrades automatically.
+- On upgrade, the widget fetches `GET {api}/api/profile/{user}?...` (open CORS, no auth required for public profiles).
+- Rendering uses Shadow DOM — host-page styles cannot leak in; the widget's styles cannot leak out.
+- Split-cell SVG: a day with N active layers divides into N vertical stripes, each in its connection color, shade = intensity level.
+- Interactive: legend chips toggle/isolate layers and recompute stat tiles; tooltip on hover (desktop) or tap (touch) shows per-connection counts.
+- Click-through: cells/header link to the profile page in a new tab (disabled when `link="off"`, as on the profile page itself).
+
+### CORS
+
+The profile API returns `Access-Control-Allow-Origin: *` on all responses, enabling cross-origin fetches from any embedding domain. No preflight is triggered because the widget uses a simple GET request with no custom headers.
+
+### Profile page integration
+
+The profile page at `/{handle}` mounts the same `<contrib-stack>` component with `link="off"` — one rendering path, no drift (D11). The widget is loaded from `/widget.js` with immutable cache headers (content-hash ETag).
 
 ## 10. Security
 
