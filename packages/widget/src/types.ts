@@ -61,4 +61,5 @@ export interface RenderState {
   theme: "light" | "dark";
   linkEnabled: boolean;
   profileUrl: string;
+  today?: string;
 }

@@ -6,7 +6,13 @@ import {
   resolveRange,
   todayIso,
 } from "./layout";
-import { maxGridColumn, renderWidget, scrollTargetX } from "./render";
+import {
+  GRID_COLS,
+  maxGridColumn,
+  renderSkeleton,
+  renderWidget,
+  scrollTargetX,
+} from "./render";
 import { resolveTheme, themeCss } from "./theme";
 import { TooltipController } from "./tooltip";
 import type { ProfileData, RenderState, Theme } from "./types";
@@ -114,10 +120,14 @@ export class ContribStack extends HTMLElement {
   private async load(): Promise<void> {
     if (!this.user || this.loading) return;
     this.loading = true;
-    this.renderMessage("Loading…");
+    this.renderSkeleton();
     try {
       const raw = await fetchProfile(this.apiBase, this.user, this.range);
       this.profile = filterSources(raw, this.sources);
+      if (this.profile.connections.length === 0) {
+        this.renderMessage("No contribution activity yet");
+        return;
+      }
       if (this.visibleSlugs.size === 0) {
         this.visibleSlugs = new Set(
           this.profile.connections.map((c) => c.slug),
@@ -161,12 +171,20 @@ export class ContribStack extends HTMLElement {
       theme,
       linkEnabled: this.linkEnabled,
       profileUrl: this.profilePageUrl(),
+      today: todayIso(),
     };
   }
 
   private renderMessage(msg: string, error = false): void {
     const theme = resolveTheme(this.themeAttr);
     this.shadow.innerHTML = `<style>${themeCss(theme)}</style><div class="cs-root"><div class="${error ? "cs-error" : "cs-loading"}">${msg}</div></div>`;
+  }
+
+  private renderSkeleton(): void {
+    const theme = resolveTheme(this.themeAttr);
+    this.shadow.innerHTML = `<style>${themeCss(theme)}</style><div class="cs-root">${renderSkeleton()}</div>`;
+    const scroll = this.shadow.querySelector("[data-scroll]") as HTMLElement | null;
+    if (scroll) scroll.scrollLeft = scrollTargetX(GRID_COLS - 1);
   }
 
   private paint(): void {

@@ -5,7 +5,7 @@ import {
   nonZeroCountsBySlug,
   resolveRange,
 } from "./layout";
-import { renderWidget, tooltipText } from "./render";
+import { renderSkeleton, renderWidget, tooltipText } from "./render";
 import type { Connection, RenderState } from "./types";
 
 function makeState(
@@ -90,6 +90,33 @@ describe("renderWidget", () => {
     expect(oneHtml).not.toContain('cs-tile-lbl">GitLab</div>');
     expect(allHtml).toContain(">5<");
     expect(oneHtml).toContain(">5<");
+  });
+
+  it("marks today's cell and emits structured tooltip data", () => {
+    const state = makeState(connections, new Set(["github", "gitlab"]));
+    state.today = "2026-07-11";
+    const html = renderWidget(state);
+    expect(html).toContain("cs-today");
+    expect(html).toContain("data-tipr=");
+    expect(html).toContain("#2da44e");
+    expect(html).toContain('class="cs-oline"');
+  });
+
+  it("omits today marker when today is outside the grid", () => {
+    const state = makeState(connections, new Set(["github"]));
+    state.today = "2030-01-01";
+    const html = renderWidget(state);
+    expect(html).not.toContain("cs-today");
+  });
+});
+
+describe("renderSkeleton", () => {
+  it("renders ghost tiles, chips, and grid", () => {
+    const html = renderSkeleton();
+    expect(html).toContain("cs-skel");
+    expect(html).toContain("cs-bone-val");
+    expect(html).toContain("cs-skel-p");
+    expect(html).toContain('role="status"');
   });
 });
 

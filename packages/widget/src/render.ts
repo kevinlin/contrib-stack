@@ -27,7 +27,7 @@ function esc(s: string): string {
     .replace(/"/g, "&quot;");
 }
 
-function formatTooltipDate(date: string): string {
+export function formatTooltipDate(date: string): string {
   const [y, m, d] = date.split("-").map(Number);
   const dt = new Date(Date.UTC(y, m - 1, d));
   return dt.toLocaleDateString("en-US", {
@@ -110,27 +110,33 @@ function renderGridSvg(state: RenderState): string {
     );
     const tip = esc(tooltipText(date, layers));
     const dataDate = esc(date);
+    const todayClass = date === state.today ? " cs-today" : "";
+    const tiprAttr =
+      layers.length > 0
+        ? ` data-tipr="${esc(JSON.stringify(layers.map((l) => [l.color, l.label, l.count])))}"`
+        : "";
 
     if (layers.length === 0) {
-      svg += `<rect class="cs-cell${linkClass}" x="${x}" y="${y}" width="${CELL_SIZE}" height="${CELL_SIZE}" rx="2" fill="var(--cs-empty)" data-date="${dataDate}" data-tip="${tip}"${linkAttr}/>`;
+      svg += `<rect class="cs-cell${todayClass}${linkClass}" x="${x}" y="${y}" width="${CELL_SIZE}" height="${CELL_SIZE}" rx="2" fill="var(--cs-empty)" data-date="${dataDate}" data-tip="${tip}"${linkAttr}/>`;
       continue;
     }
 
     if (layers.length === 1) {
       const layer = layers[0];
       const opacity = INTENSITY_OPACITY[layer.level];
-      svg += `<rect class="cs-cell${linkClass}" x="${x}" y="${y}" width="${CELL_SIZE}" height="${CELL_SIZE}" rx="2" fill="${esc(layer.color)}" fill-opacity="${opacity}" data-date="${dataDate}" data-tip="${tip}"${linkAttr}/>`;
+      svg += `<rect class="cs-cell${todayClass}${linkClass}" x="${x}" y="${y}" width="${CELL_SIZE}" height="${CELL_SIZE}" rx="2" fill="${esc(layer.color)}" fill-opacity="${opacity}" data-date="${dataDate}" data-tip="${tip}"${tiprAttr}${linkAttr}/>`;
       continue;
     }
 
     const stripes = splitCellStripes(layers.length, x, y);
-    svg += `<g class="cs-cell${linkClass}" data-date="${dataDate}" data-tip="${tip}"${linkAttr}>`;
+    svg += `<g class="cs-cell${todayClass}${linkClass}" data-date="${dataDate}" data-tip="${tip}"${tiprAttr}${linkAttr}>`;
     for (let i = 0; i < layers.length; i++) {
       const layer = layers[i];
       const stripe = stripes[i];
       const opacity = INTENSITY_OPACITY[layer.level];
       svg += `<rect x="${stripe.x}" y="${stripe.y}" width="${stripe.width}" height="${stripe.height}" fill="${esc(layer.color)}" fill-opacity="${opacity}"/>`;
     }
+    svg += `<rect class="cs-oline" x="${x}" y="${y}" width="${CELL_SIZE}" height="${CELL_SIZE}" rx="2" fill="none"/>`;
     svg += `</g>`;
   }
 
@@ -140,6 +146,14 @@ function renderGridSvg(state: RenderState): string {
 
 export function renderWidget(state: RenderState): string {
   return `${renderStats(state)}${renderLegend(state)}<div class="cs-scroll" data-scroll>${renderGridSvg(state)}</div>`;
+}
+
+export function renderSkeleton(): string {
+  const { width, height } = gridPixelSize(LABEL_LEFT, LABEL_TOP);
+  const tile = `<div class="cs-tile"><div class="cs-bone cs-bone-val"></div><div class="cs-bone cs-bone-lbl"></div></div>`;
+  const chip = `<span class="cs-chip"><span class="cs-swatch cs-bone"></span><span class="cs-bone cs-bone-lbl"></span></span>`;
+  const grid = `<svg width="${width}" height="${height}" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><defs><pattern id="cs-skel-p" width="${CELL_STEP}" height="${CELL_STEP}" patternUnits="userSpaceOnUse"><rect width="${CELL_SIZE}" height="${CELL_SIZE}" rx="2" fill="var(--cs-empty)"/></pattern></defs><rect x="${LABEL_LEFT}" y="${LABEL_TOP}" width="${width - LABEL_LEFT}" height="${height - LABEL_TOP}" fill="url(#cs-skel-p)"/></svg>`;
+  return `<div class="cs-skel" role="status" aria-label="Loading contribution activity"><div class="cs-stats">${tile}${tile}${tile}</div><div class="cs-legend">${chip}${chip}</div><div class="cs-scroll" data-scroll>${grid}</div></div>`;
 }
 
 export function maxGridColumn(layout: RenderState["layout"]): number {
