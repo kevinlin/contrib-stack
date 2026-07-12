@@ -1,66 +1,42 @@
-import Image from "next/image";
+import Link from "next/link";
 import styles from "./page.module.css";
 
 export default function Home() {
   return (
-    <div className={styles.page}>
-      <main className={styles.main}>
-        <Image
-          className={styles.logo}
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className={styles.intro}>
-          <h1>To get started, edit the page.tsx file.</h1>
-          <p>
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
-        </div>
-        <div className={styles.ctas}>
-          <a
+    <main className={styles.main}>
+      <section className={styles.hero}>
+        <p className={styles.eyebrow}>ContribStack</p>
+        <h1>Your developer activity, in one profile.</h1>
+        <p className={styles.summary}>
+          Bring GitHub, GitLab, and custom activity together in an interactive
+          contribution heatmap you can share or embed anywhere.
+        </p>
+        <div className={styles.actions}>
+          <Link
             className={styles.primary}
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
+            href="/api/auth/signin?callbackUrl=/welcome"
           >
-            <Image
-              className={styles.logo}
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className={styles.secondary}
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
+            Get started with GitHub
+          </Link>
+          <Link className={styles.secondary} href="/kevinlin">
+            View example profile
+          </Link>
         </div>
-      </main>
-    </div>
+      </section>
+      <section className={styles.features} aria-label="Features">
+        <article>
+          <h2>One profile</h2>
+          <p>Show every source as its own visible contribution layer.</p>
+        </article>
+        <article>
+          <h2>Full history</h2>
+          <p>Browse yearly activity, totals, streaks, and active days.</p>
+        </article>
+        <article>
+          <h2>Embeddable</h2>
+          <p>Use the same interactive heatmap on your own website.</p>
+        </article>
+      </section>
+    </main>
   );
 }
