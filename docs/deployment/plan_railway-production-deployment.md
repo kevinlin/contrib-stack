@@ -605,3 +605,31 @@ git commit -m "docs: record production deployment verification"
 Run: `git push origin main`
 
 Expected: CI passes and the pipeline deploys the documentation-only revision through the same controlled path.
+
+---
+
+## Changelog
+
+### 2026-07-12 — Add admin connections API and populate production data
+
+**Problem:** The deployed profile at `/kevinlin` showed no real contribution data. Only a deployment smoke-test ingest connection (7 counts) existed. No GitHub or GitLab connections had been created because connection creation requires an authenticated browser session via GitHub OAuth.
+
+**Root cause:** Connections are user-initiated through the settings UI after OAuth sign-in. The deployment plan verified the sign-in flow and smoke-test ingest but did not create long-lived GitHub or GitLab data-source connections.
+
+**Changes:**
+
+1. **Added `POST/DELETE /api/admin/connections`** (`apps/web/src/app/api/admin/connections/route.ts`) — a permanent operator API for managing connections without a browser session. Authenticated via `Authorization: Bearer <ADMIN_API_KEY>` where `ADMIN_API_KEY` is a Railway environment variable.
+   - `POST` validates the PAT against the source API, encrypts it, inserts the connection, and starts backfill.
+   - `DELETE` removes a connection by handle + slug (cascades to `daily_counts`).
+   - Returns 401 when `ADMIN_API_KEY` is unset or the header is missing/wrong.
+
+2. **Added `ADMIN_API_KEY`** to Railway environment variables and the local `.env` recovery copy. Generated as 32 cryptographically random bytes, base64url-encoded.
+
+3. **Created production connections via the admin API:**
+   - GitHub connection using a `gh` CLI PAT — backfilled 2 years (2,494 total contributions).
+   - Zuhlke GitLab connection (`codehub.zuehlke.com`) using the GitLab PAT from `.env` — backfilled from Oct 2025 (892 total contributions).
+
+4. **Deleted stale connections:**
+   - Removed pre-existing `codehub` GitLab connection (0 contributions, non-functional).
+
+**Verification:** Profile API returns GitHub (2,494) and Zuhlke GitLab (892) contribution data. Rolling-year heatmap renders overlaid green/red layers. Admin endpoint returns 404 without the key. Health endpoint passes after clean redeploy.

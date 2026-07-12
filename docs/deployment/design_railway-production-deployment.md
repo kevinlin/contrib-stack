@@ -45,6 +45,7 @@ Configure these Railway variables without committing their values:
 - `R2_BUCKET`
 - `R2_ACCESS_KEY_ID`
 - `R2_SECRET_ACCESS_KEY`
+- `ADMIN_API_KEY`, generated as 32 random bytes encoded with base64url
 
 Secrets must not appear in command output, documentation, commits, or deployment verification notes.
 
@@ -73,6 +74,53 @@ The deployment job uses a Railway project token stored as a GitHub Actions secre
 10. Complete the production deployment through GitHub Actions.
 11. Verify R2 replication and perform a non-destructive restore test into a separate temporary database.
 12. Run the product success-criteria walkthrough against production.
+
+## Admin API
+
+`/api/admin/connections` provides operator-level connection management without requiring a browser-based OAuth session. All requests require `Authorization: Bearer <ADMIN_API_KEY>`.
+
+| Method | Purpose | Body |
+|--------|---------|------|
+| `POST` | Create a GitHub or GitLab connection for a user | `{ handle, type, label, token, baseUrl?, createdAt? }` |
+| `DELETE` | Delete a connection by slug | `{ handle, slug }` |
+
+Token validation runs against the source API before insertion. On success the connection enters `backfilling` status and the sync engine begins pulling historical data in the background.
+
+The endpoint is disabled when `ADMIN_API_KEY` is unset.
+
+### Sample Admin API requests
+**Base URL:** `https://contrib-stack-production.up.railway.app`
+**Auth header:** `Authorization: Bearer <admin_api_key>`
+
+**Create a connection:**
+
+```bash
+curl -X POST https://contrib-stack-production.up.railway.app/api/admin/connections \
+  -H "Authorization: Bearer <admin_api_key>" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "handle": "kevinlin",
+    "type": "github",
+    "label": "GitHub",
+    "token": "ghp_...",
+    "createdAt": "2024-01-01T00:00:00.000Z"
+  }'
+```
+
+For GitLab with a self-hosted instance, add `"baseUrl": "https://codehub.zuehlke.com"`.
+
+The optional `createdAt` controls how far back the backfill reaches (defaults to now).
+
+**Delete a connection:**
+
+```bash
+curl -X DELETE https://contrib-stack-production.up.railway.app/api/admin/connections \
+  -H "Authorization: Bearer <admin_api_key>" \
+  -H "Content-Type: application/json" \
+  -d '{"handle": "kevinlin", "slug": "codehub"}'
+```
+
+The `slug` is returned in profile API responses and in the POST response when creating a connection.
 
 ## Verification
 
