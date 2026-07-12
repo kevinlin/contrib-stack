@@ -5,7 +5,12 @@ import {
   nonZeroCountsBySlug,
   resolveRange,
 } from "./layout";
-import { renderSkeleton, renderWidget, tooltipText } from "./render";
+import {
+  renderEmptyState,
+  renderSkeleton,
+  renderWidget,
+  tooltipText,
+} from "./render";
 import type { Connection, RenderState } from "./types";
 
 function makeState(
@@ -82,7 +87,7 @@ describe("renderWidget", () => {
     expect(all.stats.activeDays).toBe(1);
     expect(githubOnly.stats.activeDays).toBe(1);
     expect(all.stats.connectionTotals).toHaveLength(2);
-    expect(githubOnly.stats.connectionTotals).toHaveLength(1);
+    expect(githubOnly.stats.connectionTotals).toHaveLength(2);
     expect(oneHtml).toContain('data-slug="gitlab"');
     expect(oneHtml).toContain("cs-chip off");
     expect(allHtml).not.toContain("cs-chip off");
@@ -107,6 +112,35 @@ describe("renderWidget", () => {
     state.today = "2030-01-01";
     const html = renderWidget(state);
     expect(html).not.toContain("cs-today");
+  });
+
+  it("reflects layer visibility as aria-pressed on legend chips", () => {
+    const html = renderWidget(makeState(connections, new Set(["github"])));
+    expect(html).toContain('data-slug="github" aria-pressed="true"');
+    expect(html).toContain('data-slug="gitlab" aria-pressed="false"');
+  });
+
+  it("formats large totals with thousands separators", () => {
+    const big: Connection[] = [
+      {
+        slug: "github",
+        label: "GitHub",
+        color: "#2da44e",
+        total: 1234,
+        days: [{ date: "2026-07-11", count: 1234 }],
+      },
+    ];
+    const html = renderWidget(makeState(big, new Set(["github"])));
+    expect(html).toContain(">1,234<");
+  });
+});
+
+describe("renderEmptyState", () => {
+  it("renders a ghost grid with the message", () => {
+    const html = renderEmptyState("No contribution activity yet");
+    expect(html).toContain("cs-skel-p");
+    expect(html).toContain("cs-empty-msg");
+    expect(html).toContain("No contribution activity yet");
   });
 });
 

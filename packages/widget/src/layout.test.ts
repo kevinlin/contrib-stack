@@ -142,8 +142,11 @@ describe("computeStats with visible layers", () => {
     const stats = computeStats(connections, githubOnly, range, "2026-07-11");
     expect(stats.currentStreak).toBe(3);
     expect(stats.activeDays).toBe(3);
+    // totals stay range-scoped for every connection so legend counts do not
+    // jump when a layer is hidden
     expect(stats.connectionTotals).toEqual([
       { slug: "github", label: "GitHub", total: 6 },
+      { slug: "gitlab", label: "GitLab", total: 6 },
     ]);
 
     const active = unionActiveDates(connections, githubOnly, range);

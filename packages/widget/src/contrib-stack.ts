@@ -9,6 +9,7 @@ import {
 import {
   GRID_COLS,
   maxGridColumn,
+  renderEmptyState,
   renderSkeleton,
   renderWidget,
   scrollTargetX,
@@ -125,7 +126,7 @@ export class ContribStack extends HTMLElement {
       const raw = await fetchProfile(this.apiBase, this.user, this.range);
       this.profile = filterSources(raw, this.sources);
       if (this.profile.connections.length === 0) {
-        this.renderMessage("No contribution activity yet");
+        this.renderEmpty();
         return;
       }
       if (this.visibleSlugs.size === 0) {
@@ -177,7 +178,14 @@ export class ContribStack extends HTMLElement {
 
   private renderMessage(msg: string, error = false): void {
     const theme = resolveTheme(this.themeAttr);
-    this.shadow.innerHTML = `<style>${themeCss(theme)}</style><div class="cs-root"><div class="${error ? "cs-error" : "cs-loading"}">${msg}</div></div>`;
+    this.shadow.innerHTML = `<style>${themeCss(theme)}</style><div class="cs-root"><div class="${error ? "cs-error" : "cs-loading"}"${error ? ' role="alert"' : ""}>${msg}</div></div>`;
+  }
+
+  private renderEmpty(): void {
+    const theme = resolveTheme(this.themeAttr);
+    this.shadow.innerHTML = `<style>${themeCss(theme)}</style><div class="cs-root">${renderEmptyState("No contribution activity yet")}</div>`;
+    const scroll = this.shadow.querySelector("[data-scroll]") as HTMLElement | null;
+    if (scroll) scroll.scrollLeft = scrollTargetX(GRID_COLS - 1);
   }
 
   private renderSkeleton(): void {
@@ -236,6 +244,11 @@ export class ContribStack extends HTMLElement {
     if (!scroll) return;
     const maxCol = maxGridColumn(state.layout);
     scroll.scrollLeft = scrollTargetX(maxCol);
+    if (scroll.scrollWidth > scroll.clientWidth) {
+      scroll.tabIndex = 0;
+      scroll.setAttribute("role", "region");
+      scroll.setAttribute("aria-label", "Contribution heatmap, scrollable");
+    }
   }
 }
 

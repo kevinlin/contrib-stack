@@ -27,6 +27,10 @@ function esc(s: string): string {
     .replace(/"/g, "&quot;");
 }
 
+function fmt(n: number): string {
+  return n.toLocaleString("en-US");
+}
+
 export function formatTooltipDate(date: string): string {
   const [y, m, d] = date.split("-").map(Number);
   const dt = new Date(Date.UTC(y, m - 1, d));
@@ -52,15 +56,17 @@ function renderStats(state: RenderState): string {
     { val: state.stats.currentStreak, lbl: "Current streak" },
     { val: state.stats.longestStreak, lbl: "Longest streak" },
     { val: state.stats.activeDays, lbl: "Active days" },
-    ...state.stats.connectionTotals.map((c) => ({
-      val: c.total,
-      lbl: c.label,
-    })),
+    ...state.stats.connectionTotals
+      .filter((c) => state.visibleSlugs.has(c.slug))
+      .map((c) => ({
+        val: c.total,
+        lbl: c.label,
+      })),
   ];
   return `<div class="cs-stats">${tiles
     .map(
       (t) =>
-        `<div class="cs-tile"><div class="cs-tile-val">${t.val}</div><div class="cs-tile-lbl">${esc(t.lbl)}</div></div>`,
+        `<div class="cs-tile"><div class="cs-tile-val">${fmt(t.val)}</div><div class="cs-tile-lbl">${esc(t.lbl)}</div></div>`,
     )
     .join("")}</div>`;
 }
@@ -73,7 +79,7 @@ function renderLegend(state: RenderState): string {
         (t) => t.slug === c.slug,
       )?.total;
       const total = rangeTotal ?? c.total;
-      return `<button type="button" class="cs-chip${on ? "" : " off"}" data-slug="${esc(c.slug)}"><span class="cs-swatch" style="background:${esc(c.color)}"></span><span>${esc(c.label)}</span><span>${total}</span></button>`;
+      return `<button type="button" class="cs-chip${on ? "" : " off"}" data-slug="${esc(c.slug)}" aria-pressed="${on}"><span class="cs-swatch" style="background:${esc(c.color)}"></span><span>${esc(c.label)}</span><span>${fmt(total)}</span></button>`;
     })
     .join("")}</div>`;
 }
@@ -88,9 +94,10 @@ function renderGridSvg(state: RenderState): string {
     ? ` data-href="${esc(state.profileUrl)}"`
     : "";
 
-  let svg = `<svg width="${width}" height="${height}" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Contribution heatmap">`;
+  let svg = `<svg width="${width}" height="${height}" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Contribution heatmap for ${esc(profile.handle)}"><defs><clipPath id="cs-r" clipPathUnits="objectBoundingBox"><rect width="1" height="1" rx="${2 / CELL_SIZE}"/></clipPath></defs>`;
 
   for (const { col, label } of layout.monthLabels) {
+    if (col > GRID_COLS - 2) continue;
     const x = originX + col * CELL_STEP;
     svg += `<text x="${x}" y="10" fill="var(--cs-muted)" font-size="10">${label}</text>`;
   }
@@ -129,14 +136,14 @@ function renderGridSvg(state: RenderState): string {
     }
 
     const stripes = splitCellStripes(layers.length, x, y);
-    svg += `<g class="cs-cell${todayClass}${linkClass}" data-date="${dataDate}" data-tip="${tip}"${tiprAttr}${linkAttr}>`;
+    svg += `<g class="cs-cell${todayClass}${linkClass}" data-date="${dataDate}" data-tip="${tip}"${tiprAttr}${linkAttr}><g clip-path="url(#cs-r)">`;
     for (let i = 0; i < layers.length; i++) {
       const layer = layers[i];
       const stripe = stripes[i];
       const opacity = INTENSITY_OPACITY[layer.level];
       svg += `<rect x="${stripe.x}" y="${stripe.y}" width="${stripe.width}" height="${stripe.height}" fill="${esc(layer.color)}" fill-opacity="${opacity}"/>`;
     }
-    svg += `<rect class="cs-oline" x="${x}" y="${y}" width="${CELL_SIZE}" height="${CELL_SIZE}" rx="2" fill="none"/>`;
+    svg += `</g><rect class="cs-oline" x="${x}" y="${y}" width="${CELL_SIZE}" height="${CELL_SIZE}" rx="2" fill="none"/>`;
     svg += `</g>`;
   }
 
@@ -148,12 +155,19 @@ export function renderWidget(state: RenderState): string {
   return `${renderStats(state)}${renderLegend(state)}<div class="cs-scroll" data-scroll>${renderGridSvg(state)}</div>`;
 }
 
-export function renderSkeleton(): string {
+function ghostGridSvg(): string {
   const { width, height } = gridPixelSize(LABEL_LEFT, LABEL_TOP);
+  return `<svg width="${width}" height="${height}" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><defs><pattern id="cs-skel-p" width="${CELL_STEP}" height="${CELL_STEP}" patternUnits="userSpaceOnUse"><rect width="${CELL_SIZE}" height="${CELL_SIZE}" rx="2" fill="var(--cs-empty)"/></pattern></defs><rect x="${LABEL_LEFT}" y="${LABEL_TOP}" width="${width - LABEL_LEFT}" height="${height - LABEL_TOP}" fill="url(#cs-skel-p)"/></svg>`;
+}
+
+export function renderSkeleton(): string {
   const tile = `<div class="cs-tile"><div class="cs-bone cs-bone-val"></div><div class="cs-bone cs-bone-lbl"></div></div>`;
   const chip = `<span class="cs-chip"><span class="cs-swatch cs-bone"></span><span class="cs-bone cs-bone-lbl"></span></span>`;
-  const grid = `<svg width="${width}" height="${height}" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><defs><pattern id="cs-skel-p" width="${CELL_STEP}" height="${CELL_STEP}" patternUnits="userSpaceOnUse"><rect width="${CELL_SIZE}" height="${CELL_SIZE}" rx="2" fill="var(--cs-empty)"/></pattern></defs><rect x="${LABEL_LEFT}" y="${LABEL_TOP}" width="${width - LABEL_LEFT}" height="${height - LABEL_TOP}" fill="url(#cs-skel-p)"/></svg>`;
-  return `<div class="cs-skel" role="status" aria-label="Loading contribution activity"><div class="cs-stats">${tile}${tile}${tile}</div><div class="cs-legend">${chip}${chip}</div><div class="cs-scroll" data-scroll>${grid}</div></div>`;
+  return `<div class="cs-skel" role="status" aria-label="Loading contribution activity"><div class="cs-stats">${tile}${tile}${tile}</div><div class="cs-legend">${chip}${chip}</div><div class="cs-scroll" data-scroll>${ghostGridSvg()}</div></div>`;
+}
+
+export function renderEmptyState(msg: string): string {
+  return `<div class="cs-empty"><div class="cs-scroll" data-scroll>${ghostGridSvg()}</div><div class="cs-empty-msg">${esc(msg)}</div></div>`;
 }
 
 export function maxGridColumn(layout: RenderState["layout"]): number {

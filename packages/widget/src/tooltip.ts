@@ -110,8 +110,15 @@ export class TooltipController {
     this.setContent(anchor, text);
     el.style.display = "block";
     const rect = anchor.getBoundingClientRect();
-    el.style.left = `${rect.left + rect.width / 2}px`;
-    el.style.top = `${rect.top}px`;
+    const half = el.offsetWidth / 2;
+    const cx = Math.min(
+      Math.max(rect.left + rect.width / 2, half + 4),
+      window.innerWidth - half - 4,
+    );
+    const below = rect.top - el.offsetHeight - 12 < 0;
+    el.classList.toggle("below", below);
+    el.style.left = `${cx}px`;
+    el.style.top = `${below ? rect.bottom : rect.top}px`;
     if (wasHidden) {
       el.classList.remove("on");
       void el.offsetWidth;

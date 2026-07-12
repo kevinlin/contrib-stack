@@ -113,7 +113,7 @@ A near-monochrome GitHub Primer shell carrying saturated, per-source layer color
 
 **Display / Body / Label Font:** `system-ui, -apple-system, sans-serif` (the host page's native UI font)
 
-**Character:** One system font stack does everything — headings, values, labels, axis. There is no display face and no web font, by constraint: the widget must load instantly on someone else's page and stay inside the 15 KB gzip budget. Character comes from weight and size, not from family.
+**Character:** One system font stack does everything — headings, values, labels, axis. There is no display face and no web font, by constraint: the widget must load instantly on someone else's page and stay inside the 15 KB gzip budget. Character comes from weight and size, not from family. All numerals are tabular (`font-variant-numeric: tabular-nums`) and totals ≥1,000 take thousands separators, so counts align and don't jitter as layers toggle.
 
 ### Hierarchy
 - **Title** (600, 18px, 1.2): Stat-tile values — the streak counts, active-day totals, per-source totals. The largest, boldest type in the widget.
@@ -147,21 +147,24 @@ Crisp and engineered: tight boundaries, high contrast, sharp small radii. Every 
 ### Legend Chips
 - **Shape:** Full pill (16px radius), 1px Hairline border, Panel background — a button, not decoration.
 - **Contents:** Color swatch (10px, 2px radius) + source label + range total.
-- **States:** Default is on. Toggled off drops to `opacity: 0.45`; the swatch keeps its hue so identity survives the dimming. Cursor pointer; clicking isolates or restores a layer and refilters the tiles. At least one layer always stays on.
+- **States:** Default is on (`aria-pressed="true"`). Toggled off keeps the chip surface opaque but drops the label to Muted Ink and dims the swatch to 35% opacity — the hue survives, so identity does too, and the label stays readable (≥4.5:1). The chip's range total never changes with visibility; only the stat tiles refilter. Cursor pointer with an invisible extended hit area for touch. At least one layer always stays on.
 
 ### Heatmap Cells
 - **Shape:** 12px square, 2px radius, 3px gap (15px step), on a 53-column by 7-row grid.
 - **Single source:** Filled in the source color at the day's intensity opacity.
-- **Multiple sources:** Split into equal vertical stripes, one per source, each at its own intensity — the Overlay Rule made visible.
+- **Multiple sources:** Split into equal vertical stripes, one per source, each at its own intensity — the Overlay Rule made visible. Stripes are clipped to the same 2px rounded corners as single-source cells.
 - **Empty:** Empty Cell color at full opacity.
 - **Behavior:** When click-through is on, cells carry a pointer cursor and open the profile in a new tab; the grid auto-scrolls to the most recent weeks on load.
 
 ### Tooltip
 - **Style:** Position-fixed, Ink (dark: Tooltip) background, white text, 6px radius, 6px×10px padding, the one shadow in the system.
-- **Content:** The formatted date plus each active source's exact count for that day. Anchored above the pointer, `pointer-events: none`.
+- **Content:** A bold date header, then one row per active source: color dot, label, right-aligned tabular count. `pointer-events: none`.
+- **Placement:** Anchored above the cell, clamped inside the viewport horizontally; flips below the cell when there is no room above (the widget often embeds near the top of a host page).
 
-### Loading / Error
-- **Style:** Centered Muted Ink text, 24px padding, inside the themed shell. Minimal by intent today — a known place to add a real skeleton and a teaching empty state.
+### Loading / Empty / Error
+- **Loading:** A skeleton mirroring the real layout — three bone tiles, two bone chips, and a ghost grid of Empty Cells — pulsing at 1.6s (`role="status"`, static under reduced motion). Bone dimensions match the loaded content, so nothing shifts when data arrives.
+- **Empty:** The same ghost grid, static, with "No contribution activity yet" beneath it in Muted Ink — the empty state teaches the heatmap's shape instead of showing a bare message.
+- **Error:** Centered Muted Ink text, 24px padding, `role="alert"`, inside the themed shell.
 
 ## 6. Do's and Don'ts
 

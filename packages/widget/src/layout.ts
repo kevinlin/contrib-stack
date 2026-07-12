@@ -277,8 +277,9 @@ export function computeStats(
   today = todayIso(),
 ): Stats {
   const activeDates = unionActiveDates(connections, visibleSlugs, range);
+  // totals cover every connection so legend counts stay stable when a layer
+  // is toggled off; stat tiles filter by visibility at render time
   const connectionTotals = connections
-    .filter((c) => visibleSlugs.has(c.slug))
     .map((c) => {
       let total = 0;
       for (const day of c.days) {
