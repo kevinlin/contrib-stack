@@ -321,22 +321,31 @@ resync(connectionId: string): Promise<void>    // wipe daily_counts for connecti
 
 ## MVP Success-Criteria Results
 
-**Date:** 2026-07-11 (pre-deploy, local verification)
+**Date:** 2026-07-12 (production verification)
 
 | # | Criterion | Status | Notes |
 |---|-----------|--------|-------|
-| 1 | Sign in with GitHub, claim a handle, connect GitHub PAT + self-hosted GitLab + gitlab.com; full history backfills | PASS (code) | Auth.js GitHub OAuth, `/welcome` handle claim, connection CRUD with PAT validation, backfill engine with year-window iteration. Requires live OAuth app for manual test. |
-| 2 | Profile shows overlaid multi-year heatmap; layer toggles, stat tiles, and year navigation work | PASS (code+unit) | `<contrib-stack>` web component with split-cell SVG rendering, legend chip toggles, stat tiles (streak/active days), year nav. 15 widget tests + 8 profile page tests. |
-| 3 | `widget.js` on an external page renders the interactive rolling-year widget with click-through to the profile | PASS (code) | Shadow DOM widget at 5.31 KB gzip (budget: 15 KB). Embed test page at `/embed-test.html` with aggressive host CSS proves isolation. Click-through links to `/{user}`. |
-| 4 | An ingest connection created in the UI plus a `curl` upsert appears as a new colored layer without a deploy | PASS (code+unit) | `POST /api/settings/connections` issues `csk_` key (shown once). `POST /api/ingest` upserts atomically. 7 ingest API tests + E2E spec. |
-| 5 | Warm-cache profile load under ~1s. Private toggle hides both page and embed | PASS (code+unit) | SSR profile page serves pre-fetched data. Stale-while-revalidate refreshes in background. Privacy toggle returns identical 404 for private/unknown handles. 5 privacy tests. |
-| 6 | Profile page and widget are responsive and touch-friendly | PASS (code) | Fixed cell size with horizontal scroll, tiles reflow 4→2 columns, tap-to-tooltip on touch. CSS grid responsive layout. |
+| 1 | Sign in with GitHub, claim a handle, connect GitHub PAT + self-hosted GitLab + gitlab.com; full history backfills | PARTIAL | Production GitHub OAuth and handle claim succeeded. The first sign-in landed on `/settings` instead of redirecting a pending user to `/welcome`; opening `/welcome` manually allowed the claim. GitHub and GitLab PAT backfills were not exercised because no PATs were supplied. |
+| 2 | Profile shows overlaid multi-year heatmap; layer toggles, stat tiles, and year navigation work | PASS | The production `/kevinlin` profile rendered the widget, ingest layer, total 7, streak 1, active days 1, and year controls. Automated widget and profile tests cover layer toggles and year changes. |
+| 3 | `widget.js` on an external page renders the interactive rolling-year widget with click-through to the profile | PARTIAL | Production `/widget.js` returned 200 and the profile rendered the same component. The external-origin production check could not be run because the browser blocked the temporary `data:` test page. The external embed Playwright test passed in CI. |
+| 4 | An ingest connection created in the UI plus a `curl` upsert appears as a new colored layer without a deploy | PASS | Created `Deployment smoke test` in production and upserted `{date: "2026-07-12", count: 7}`. The new layer and count appeared without a deploy and persisted through a Railway restart and R2 restore. |
+| 5 | Warm-cache profile load under ~1s. Private toggle hides both page and embed | PASS | Five production API trials were 0.204200s, 0.067145s, 0.058851s, 0.057493s, and 0.053983s. Private and unknown profile APIs returned 404 with identical bodies; public access was restored afterward. |
+| 6 | Profile page and widget are responsive and touch-friendly | PASS (automated) | Responsive layout and touch behavior pass the widget and Playwright suites. The production browser's viewport override was not honored, so no additional device-sized manual result is claimed. |
 
-**Summary:** All 6 design goals are structurally implemented and pass unit/integration tests. Full end-to-end production verification requires Railway deployment with live GitHub OAuth credentials.
+**Summary:** Production is live at `https://contrib-stack-production.up.railway.app`. Criteria 2, 4, 5, and 6 pass. Criteria 1 and 3 are partial because of the pending-user redirect defect, missing PAT credentials, and the blocked external-origin manual check.
+
+**Deployment evidence:**
+
+- GitHub Actions CI run `29178064676`: passed.
+- GitHub Actions deploy run `29178104190`: passed.
+- Railway deployment `4d162ad9-16f2-4906-a6ec-560252ca6618`: successful, one Singapore replica, 5 GB volume mounted at `/data`.
+- Railway repository auto-deploy is disconnected. Production deploys only through GitHub Actions.
+- Restart test preserved the production profile and ingest count.
+- An isolated restore from Cloudflare R2 recovered handle `kevinlin` and count 7. Litestream retention is limited to 168 hours to keep usage bounded within the 10 GB/month free tier.
 
 **Stats:**
-- 112 unit/integration tests across 21 test files (all passing)
+- 115 unit/integration tests across 23 test files (all passing)
 - 6 Playwright E2E specs (profile, ingest, embed)
 - Widget bundle: 5.31 KB gzip (budget: 15 KB)
 - Full build: all 3 packages + Next.js app build green
-- 17 commits on `feat/mvp` branch
+- Deployment work committed directly to `main`
