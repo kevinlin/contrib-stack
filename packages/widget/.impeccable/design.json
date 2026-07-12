@@ -1,0 +1,131 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-07-12T00:00:00Z",
+  "title": "Design System: ContribStack Widget",
+  "extensions": {
+    "colorMeta": {
+      "source-green": {
+        "role": "primary",
+        "displayName": "Source Green",
+        "canonical": "#2da44e",
+        "tonalRamp": ["#04260f", "#08381a", "#0f5426", "#177334", "#219143", "#2da44e", "#57bd72", "#8ed3a1"]
+      },
+      "source-orange": {
+        "role": "primary",
+        "displayName": "Source Orange",
+        "canonical": "#fc6d26",
+        "tonalRamp": ["#3a1602", "#571f04", "#7a2c06", "#a53c0a", "#d1500f", "#fc6d26", "#fd9560", "#fec0a0"]
+      },
+      "ink-dark": {
+        "role": "neutral",
+        "displayName": "Ink",
+        "canonical": "#e6edf3",
+        "tonalRamp": ["#1f2328", "#30363d", "#484f58", "#656d76", "#8b949e", "#b1bac4", "#d0d7de", "#e6edf3"]
+      },
+      "canvas-dark": {
+        "role": "neutral",
+        "displayName": "Canvas",
+        "canonical": "#0d1117",
+        "tonalRamp": ["#010409", "#0d1117", "#161b22", "#21262d", "#30363d", "#484f58", "#656d76", "#8b949e"]
+      },
+      "panel-light": {
+        "role": "neutral",
+        "displayName": "Panel",
+        "canonical": "#f6f8fa",
+        "tonalRamp": ["#24292f", "#32383f", "#57606a", "#8c959f", "#afb8c1", "#d0d7de", "#eaeef2", "#f6f8fa"]
+      },
+      "empty-light": {
+        "role": "neutral",
+        "displayName": "Empty Cell",
+        "canonical": "#ebedf0",
+        "tonalRamp": ["#1b1f23", "#2f363d", "#57606a", "#8c959f", "#c0c7cf", "#d8dee4", "#ebedf0", "#f6f8fa"]
+      }
+    },
+    "typographyMeta": {
+      "title": { "displayName": "Title", "purpose": "Stat-tile values — streak counts and totals. The boldest type in the widget." },
+      "body": { "displayName": "Body", "purpose": "Base size on :host; loading and error messages." },
+      "label": { "displayName": "Label", "purpose": "Stat-tile captions and legend chips, in Muted Ink." },
+      "micro": { "displayName": "Micro", "purpose": "SVG axis labels — month names and weekday markers." }
+    },
+    "shadows": [
+      { "name": "floating-tip", "value": "0 2px 8px rgba(0,0,0,0.25)", "purpose": "The only shadow in the system. Lifts the position-fixed tooltip off the content it hovers over." }
+    ],
+    "motion": [
+      { "name": "none", "value": "none", "purpose": "The widget defines no CSS transitions; repaints are instant. Any future motion must convey state, stay within 150–250ms, and respect prefers-reduced-motion." }
+    ]
+  },
+  "components": [
+    {
+      "name": "Stat Tile",
+      "kind": "card",
+      "refersTo": "stat-tile",
+      "description": "A single metric: a bold value over a muted caption. Reflows in an auto-fit grid.",
+      "html": "<div class=\"ds-stat-tile\"><div class=\"ds-stat-tile-val\">128</div><div class=\"ds-stat-tile-lbl\">Longest streak</div></div>",
+      "css": ".ds-stat-tile { background: #f6f8fa; border: 1px solid #d0d7de; border-radius: 6px; padding: 8px 10px; font-family: system-ui, -apple-system, sans-serif; } .ds-stat-tile-val { font-size: 18px; font-weight: 600; color: #1f2328; } .ds-stat-tile-lbl { font-size: 11px; color: #656d76; }"
+    },
+    {
+      "name": "Legend Chip",
+      "kind": "chip",
+      "refersTo": "legend-chip",
+      "description": "A pill button, one per source: color swatch, label, range total. Click toggles or isolates the layer.",
+      "html": "<button type=\"button\" class=\"ds-legend-chip\"><span class=\"ds-legend-swatch\"></span><span>GitHub (personal)</span><span>842</span></button>",
+      "css": ".ds-legend-chip { display: inline-flex; align-items: center; gap: 6px; padding: 4px 8px; border: 1px solid #d0d7de; border-radius: 16px; background: #f6f8fa; color: #1f2328; cursor: pointer; font-family: system-ui, -apple-system, sans-serif; font-size: 12px; user-select: none; } .ds-legend-chip:hover { border-color: #8c959f; } .ds-legend-chip:focus-visible { outline: 2px solid #2da44e; outline-offset: 1px; } .ds-legend-swatch { width: 10px; height: 10px; border-radius: 2px; flex-shrink: 0; background: #2da44e; }"
+    },
+    {
+      "name": "Legend Chip (off)",
+      "kind": "chip",
+      "refersTo": "legend-chip",
+      "description": "A toggled-off layer. Dimmed to 0.45; the swatch keeps its hue so identity survives.",
+      "html": "<button type=\"button\" class=\"ds-legend-chip ds-legend-chip-off\"><span class=\"ds-legend-swatch\"></span><span>GitLab (work)</span><span>318</span></button>",
+      "css": ".ds-legend-chip-off { opacity: 0.45; } .ds-legend-chip-off .ds-legend-swatch { background: #fc6d26; }"
+    },
+    {
+      "name": "Heatmap Cells",
+      "kind": "custom",
+      "refersTo": "heatmap-cell",
+      "description": "Left: a single-source day at intensity 0.6. Right: a two-source day split into equal color stripes — the Overlay Rule made visible.",
+      "html": "<svg class=\"ds-cells\" width=\"39\" height=\"12\" xmlns=\"http://www.w3.org/2000/svg\" role=\"img\" aria-label=\"Heatmap cells\"><rect x=\"0\" y=\"0\" width=\"12\" height=\"12\" rx=\"2\" fill=\"#2da44e\" fill-opacity=\"0.6\"/><g><rect x=\"27\" y=\"0\" width=\"6\" height=\"12\" fill=\"#2da44e\" fill-opacity=\"0.8\"/><rect x=\"33\" y=\"0\" width=\"6\" height=\"12\" fill=\"#fc6d26\" fill-opacity=\"0.4\"/></g></svg>",
+      "css": ".ds-cells { display: block; }"
+    },
+    {
+      "name": "Tooltip",
+      "kind": "custom",
+      "refersTo": "tooltip",
+      "description": "The one floating surface. Formatted date plus each active source's exact count.",
+      "html": "<div class=\"ds-tooltip\">Jul 11, 2026 — GitHub (personal): 8, GitLab (work): 3</div>",
+      "css": ".ds-tooltip { display: inline-block; padding: 6px 10px; border-radius: 6px; background: #1f2328; color: #fff; font-family: system-ui, -apple-system, sans-serif; font-size: 12px; white-space: nowrap; box-shadow: 0 2px 8px rgba(0,0,0,0.25); }"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Signal Stack",
+    "overview": "Every source a developer connects is a distinct colored signal, and the widget stacks them onto one 53-by-7 grid without ever flattening them into a single number. The lineage is the observability dashboard — high-contrast, engineered, comfortable in dark mode — not the marketing chart. The widget renders on sites its author will never see, so the shell is deliberately quiet and the color does the talking: flat containers with hairline borders, the host's own system font, nothing floating except the tooltip. The energy is bold but comes from the data — saturated layer colors, dense cells, sharp edges — never from gradients, glows, or motion. It must look intentional on a stranger's homepage and fit a 15 KB gzip budget with zero dependencies.",
+    "keyCharacteristics": [
+      "Multi-source overlay: N active sources on a day split the cell into N equal color stripes, never merged.",
+      "Intensity rides opacity, not hue: a source keeps one color; its volume is expressed 0.2 to 0.8.",
+      "Shadow-DOM isolated, host system font, flat shell, under 15 KB.",
+      "Dark-mode-native, crisp and high-contrast; bold through data, not decoration."
+    ],
+    "rules": [
+      { "name": "The Overlay Rule", "body": "Sources never merge. A day with N visible active sources divides into N equal-width vertical stripes, each in its source color. Reducing a multi-source day to one blended color or one total is forbidden — the separation is the product.", "section": "colors" },
+      { "name": "The Opacity Ramp Rule", "body": "Intensity is expressed through opacity, never through hue shifts. Each source keeps one color; the day's volume maps to five levels (0, 0.2, 0.4, 0.6, 0.8) bucketed by quartile against that source's own non-zero history. Hue is identity; opacity is volume.", "section": "colors" },
+      { "name": "The System-Font Rule", "body": "The widget ships no fonts and loads none. It borrows whatever system-ui resolves to on the host. Adding a web font is forbidden: it breaks the load-instantly promise and the gzip budget.", "section": "typography" },
+      { "name": "The Flat-Shell, Floating-Tip Rule", "body": "Every resting surface — tiles, chips, cells — is flat with a hairline border. The tooltip is the only thing in the system that casts a shadow, because it is the only thing that floats. If a container has a shadow, it is wrong.", "section": "elevation" }
+    ],
+    "dos": [
+      "Do keep the multi-source overlay intact: split a shared day into equal per-source stripes; never blend or total them away.",
+      "Do express intensity through opacity (0.2 to 0.8) on a fixed source hue.",
+      "Do carry source identity redundantly — color plus legend label plus tooltip — so two close hues still read as two sources for color-blind viewers.",
+      "Do use flat surfaces with 1px hairline borders; reserve the only shadow for the tooltip.",
+      "Do stay on the host's system-ui stack and inside the 15 KB gzip budget; ship no web fonts and no framework.",
+      "Do keep the shell quiet so the widget looks native on any host page, and let the layer color be the boldest thing on screen."
+    ],
+    "donts": [
+      "Don't make it look like a corporate analytics dashboard — no KPI cards, filter bars, or enterprise chrome.",
+      "Don't let it read as a bare GitHub clone — a one-to-one copy of the green-squares calendar throws away the multi-source overlay.",
+      "Don't go loud or overdesigned — no gradients, glows, glassmorphism, or decorative motion.",
+      "Don't use gradient text or a background-clip: text fill anywhere.",
+      "Don't use a colored side-stripe border (border-left/border-right > 1px) on tiles, chips, or callouts.",
+      "Don't add a web font, a framework dependency, or anything that risks the load-instantly promise or the size budget."
+    ]
+  }
+}

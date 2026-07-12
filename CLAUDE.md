@@ -84,3 +84,6 @@ Interface in `packages/connectors/src/types.ts`: `validate` (on save), `backfill
 
 ## Deploy
 Railway single node, built from the root `Dockerfile` (multi-stage, `output: "standalone"`). Litestream continuously replicates the SQLite file to Cloudflare R2; `docker-entrypoint.sh` restores from R2 on first boot if the DB is missing, then runs Next under `litestream replicate`. `DATABASE_PATH` points at a mounted volume in production.
+
+## Design Context
+The widget package carries its own design context for UI work: strategic register, users, positioning, and design principles in [packages/widget/PRODUCT.md](packages/widget/PRODUCT.md), and the visual system (tokens, typography, components) in [packages/widget/DESIGN.md](packages/widget/DESIGN.md). Read both before non-trivial changes to `<contrib-stack>` rendering or theming. Register: product. Platform: web.
