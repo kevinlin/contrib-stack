@@ -17,6 +17,7 @@ describe("production homepage", () => {
       'href="/api/auth/signin?callbackUrl=/welcome"',
     );
     expect(html).toContain('href="/kevinlin"');
+    expect(html).toContain('href="/settings"');
   });
 
   it("uses ContribStack metadata", () => {

@@ -21,6 +21,9 @@ export default function Home() {
           <Link className={styles.secondary} href="/kevinlin">
             View example profile
           </Link>
+          <Link className={styles.secondary} href="/settings">
+            Settings
+          </Link>
         </div>
       </section>
       <section className={styles.features} aria-label="Features">

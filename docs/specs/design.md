@@ -219,4 +219,4 @@ A git-ignored root `.env` (mode 600) holds a recovery copy of generated credenti
 
 ## 14. Homepage
 
-The root page identifies ContribStack, explains the multi-source contribution profile in one paragraph, and provides two actions: sign in with GitHub (via Auth.js to `/welcome`) and view the deployed example profile. Local CSS, responsive, production metadata replacing Create Next App defaults.
+The root page identifies ContribStack, explains the multi-source contribution profile in one paragraph, and provides three actions: sign in with GitHub (via Auth.js to `/welcome`), view the deployed example profile, and go to settings (server-guarded — unauthenticated users are redirected to sign-in). Local CSS, responsive, production metadata replacing Create Next App defaults.

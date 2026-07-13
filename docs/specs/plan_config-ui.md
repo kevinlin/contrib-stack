@@ -90,3 +90,19 @@ Playwright is the end-to-end proof: real dev server, real file DB, real browser 
 - `redirect()`/`signOut()` throw — no try/catch around them.
 - Cookie name is `authjs.session-token` only on http; production uses `__Secure-` prefix (no app code depends on it).
 - Keep the client-component move mechanical — polling/modal/color-picker flows have no unit coverage.
+
+---
+
+## Changelog
+
+- 2026-07-13 — **Add settings entry point from homepage**
+
+**Problem:** No way to reach `/settings` from the homepage. Returning users had to type the URL manually.
+
+**Fix:** Added a "Settings" link as a third action button in the hero section. The server auth gate on `/settings` handles unauthenticated users by redirecting them to sign-in, so no conditional rendering is needed on the homepage.
+
+**Files changed:**
+- `apps/web/src/app/page.tsx` — added Settings link to hero actions
+- `apps/web/src/app/page.test.tsx` — assert `/settings` href
+- `docs/specs/design.md` — §14 updated to note three actions
+- `docs/specs/plan_config-ui.md` — this changelog entry
