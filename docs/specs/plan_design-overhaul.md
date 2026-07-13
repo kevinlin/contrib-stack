@@ -73,3 +73,72 @@ Browser proof: driven in Chrome across light, dark, and 375px mobile. Confirmed 
 - **`dist/widget.js` is committed and served.** `next.config.ts` copies it into `apps/web/public/`. After any `src` change, rebuild and commit `dist` **together** — a stale `dist` ships old behavior.
 - **e2e depends on widget class names.** `apps/web/e2e/*.spec.ts` select `.cs-chip`, `.cs-tile`, `.cs-tile-lbl`, `.cs-tile-val`, `.off`. None were renamed; keep them stable or update the specs in lockstep.
 - **Scroll-region a11y attrs are conditional.** Applied only when `scrollWidth > clientWidth`, so a non-overflowing grid isn't announced as scrollable.
+
+## Mobile-friendly responsive web app + embedded widget
+
+Date: 2026-07-13. Scope: `apps/web` (all public pages + settings) and `packages/widget` (`<contrib-stack>` scroll behavior). No changes to `packages/connectors`.
+
+### Context
+
+Made both surfaces the user named — the deployed site and the embedded view — usable on phones. Driven by browser evidence (Chrome device emulation, 320px and 390px, light and dark) against a seeded file DB, not static review. The web app already carried per-page breakpoints; this pass fixed one real overflow bug, closed touch-target and input-zoom gaps, and hardened the widget's scroll against a touch host.
+
+One defect was a real bug (the profile page clipped the heatmap on mobile). The rest are touch-input and safe-area completeness gaps that only show up on a real device.
+
+Widget bundle stayed within budget: 6.79 KB gzip against the 15 KB cap. Lint clean; all 128 unit/integration tests green.
+
+### What changed
+
+#### Bugs
+
+1. **Profile page clipped the heatmap on mobile.** The third stat tile and recent weeks were cut off at the right edge — clipped, not scrollable. Root cause was structural, not a breakpoint miss: `body` is a column flexbox ([globals.css](../../apps/web/src/app/globals.css)), so `.main` is a flex item that, under `align-items: stretch`, sized itself to the 820px grid's *max-content* width instead of the viewport; `body`'s `overflow-x: hidden` then clipped the excess rather than letting the widget's own scroll container take over. Fix ([[handle]/page.module.css](../../apps/web/src/app/[handle]/page.module.css)): `width: 100%` + `min-width: 0` on `.main`. A definite width forces the constraint to cascade so `.cs-scroll` scrolls. This is why the widget looked correct in an isolated harness but broke in-page — the harness body was normal block flow.
+
+#### Touch & input
+
+2. **iOS focus-zoom on form controls.** Any focused input under 16px makes mobile Safari zoom the page. Fix: a `@media (pointer: coarse)` rule lifting `input, select, textarea` to 16px ([globals.css](../../apps/web/src/app/globals.css)), keeping the desktop scale. The settings form needed a **class-scoped** duplicate ([settings/page.module.css](../../apps/web/src/app/settings/page.module.css)) because `.field input` (0.95rem) out-specifies the global element rule — a media query adds no specificity (see Gotchas).
+
+3. **Undersized tap targets.** Under `pointer: coarse`: profile year tabs → 40px min-height ([[handle]/page.module.css](../../apps/web/src/app/[handle]/page.module.css)); settings buttons → 44px, color swatches → 40px ([settings/page.module.css](../../apps/web/src/app/settings/page.module.css)); welcome submit button enlarged ([welcome/page.tsx](../../apps/web/src/app/welcome/page.tsx)).
+
+4. **Cramped settings chrome.** The account bar overflowed on narrow screens — now `flex-wrap` (sign-out drops to its own right-aligned line). The API-key modal actions stack full-width on mobile (`Done` at the bottom for thumb reach).
+
+#### Safe areas & viewport
+
+5. **Notch handling.** Added a `viewport` export with `viewport-fit=cover` ([layout.tsx](../../apps/web/src/app/layout.tsx)); pinch-zoom left enabled (a11y). Content pages fold `env(safe-area-inset-*)` into their horizontal padding via `max()` so nothing slides under the notch in landscape ([page.module.css](../../apps/web/src/app/page.module.css), [[handle]/page.module.css](../../apps/web/src/app/[handle]/page.module.css), [settings/page.module.css](../../apps/web/src/app/settings/page.module.css)). Home uses `100dvh` to avoid the mobile-toolbar height jump.
+
+#### Embedded widget
+
+6. **Scroll containment on touch.** `overscroll-behavior-x: contain` + `touch-action: pan-x` on `.cs-scroll` ([theme.ts](../../packages/widget/src/theme.ts)) so dragging the heatmap horizontally doesn't chain to the host page's back-swipe navigation or steal its vertical scroll. No grid-geometry change: the 53-column horizontal-scroll model is intentional (extends the calendar mental model) and matches DESIGN.md.
+
+#### Verified, no change needed
+
+- **Widget in-page layout.** Stat tiles reflow to 2-up, legend chips wrap, grid auto-scrolls to recent weeks and stays contained (page never scrolls horizontally). Measured at 320px and 390px.
+
+### Files
+
+| File | Change |
+|---|---|
+| `apps/web/src/app/layout.tsx` | `viewport` export: `viewport-fit=cover`, device-width, zoom enabled |
+| `apps/web/src/app/globals.css` | `@media (pointer: coarse)` → 16px form controls (iOS zoom fix) |
+| `apps/web/src/app/page.module.css` | safe-area padding via `max()`; `100dvh` |
+| `apps/web/src/app/[handle]/page.module.css` | `width:100%`+`min-width:0` flex fix; safe-area padding; 40px touch tabs |
+| `apps/web/src/app/settings/page.module.css` | account-bar `flex-wrap`; 44px buttons / 40px swatches; class-scoped 16px inputs; full-width stacked modal actions; safe-area padding |
+| `apps/web/src/app/welcome/page.tsx` | larger submit tap target |
+| `packages/widget/src/theme.ts` | `.cs-scroll`: `overscroll-behavior-x: contain` + `touch-action: pan-x` |
+| `apps/web/public/widget.js` | rebuilt bundle |
+
+### Verification
+
+```bash
+pnpm lint                                    # 0 errors
+pnpm test                                    # 128 tests, 25 files, all green
+pnpm --filter @contrib-stack/widget build    # 6.79 KB gzip, under 15 KB
+```
+
+Browser proof: booted the dev server against a seeded file DB (two ingest connections + ~1y of daily counts) with a forged database session, then drove Chrome device emulation at 320px and 390px, light and dark, across home, profile, settings, the API-key modal, and the embedded widget. Confirmed by hand — no horizontal page overflow, contained widget scroll, 16px inputs, wrapped account bar, stacked modal — with DOM measurements, not just screenshots.
+
+### Gotchas
+
+- **Flexbox min-content blowout.** `body` is a column flexbox, so `align-items: stretch` does **not** guarantee a flex-item `<main>` fits the viewport — with a wide intrinsic child (the widget grid) the item takes its content's max-content width and `body { overflow-x: hidden }` silently clips it. Any page hosting wide content needs `width: 100%` + `min-width: 0` on that container. This was the profile-page clipping bug.
+- **`@media` adds no specificity.** A global `input { font-size: 16px }` inside a media query still loses to a module's `.field input { font-size: 0.95rem }` (class beats element). Where a CSS module sets a control's font-size, the touch override must live in that module at matching specificity, not only in globals.
+- **`viewport-fit=cover` is opt-in edge-to-edge.** Once set, content extends under the notch/home-indicator; you **must** add `env(safe-area-inset-*)` padding or edge content is obscured. It's not free.
+- **Chrome window resize clamps ~500px.** `resize_page` can't reach true phone widths; use the `emulate` viewport tool (`320x568x2,mobile,touch`) for sub-500px layout testing. `pointer: coarse` / `hover: none` are emulated correctly under `mobile,touch`.
+- **`dist/widget.js` rebuild + commit together.** Same as the polish pass: the widget scroll change means the committed `dist` (copied to `apps/web/public/`) must be rebuilt in lockstep or a stale bundle ships old behavior.

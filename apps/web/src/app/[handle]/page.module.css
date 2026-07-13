@@ -1,7 +1,16 @@
 .main {
+  width: 100%;
   max-width: 960px;
   margin: 0 auto;
-  padding: 2rem 1.5rem 3rem;
+  /* body is a column flexbox. As a flex item, .main otherwise sizes to the
+     widget grid's max-content width and body's overflow-x:hidden clips it.
+     A definite width (100% of the viewport) + min-width:0 forces the grid's
+     own horizontal scroll to take over instead. */
+  min-width: 0;
+  padding: 2rem
+    max(1.5rem, env(safe-area-inset-right))
+    3rem
+    max(1.5rem, env(safe-area-inset-left));
 }
 
 .header {
@@ -22,13 +31,23 @@
 
 .tab,
 .tabActive {
-  display: inline-block;
+  display: inline-flex;
+  align-items: center;
   padding: 0.4rem 0.85rem;
   border-radius: 6px;
   font-size: 0.9rem;
   border: 1px solid var(--border, #e5e5e5);
   background: var(--surface, #fafafa);
   transition: background 0.15s, border-color 0.15s;
+}
+
+/* Comfortable tap targets on touch devices without bulking up the pointer UI. */
+@media (pointer: coarse) {
+  .tab,
+  .tabActive {
+    min-height: 40px;
+    padding-inline: 1rem;
+  }
 }
 
 .tab:hover {
@@ -43,7 +62,6 @@
 
 .widgetSection {
   width: 100%;
-  overflow-x: auto;
 }
 
 @media (prefers-color-scheme: dark) {

@@ -1,6 +1,10 @@
 .main {
   min-height: 100vh;
-  padding: 96px 32px 64px;
+  min-height: 100dvh;
+  padding-block: 96px 64px;
+  padding-inline:
+    max(32px, env(safe-area-inset-left))
+    max(32px, env(safe-area-inset-right));
   background:
     radial-gradient(circle at 20% 10%, rgba(47, 129, 247, 0.16), transparent 32rem),
     var(--background);
@@ -101,11 +105,14 @@
 
 @media (max-width: 680px) {
   .main {
-    padding: 48px 24px;
+    padding-block: 48px 48px;
+    padding-inline:
+      max(20px, env(safe-area-inset-left))
+      max(20px, env(safe-area-inset-right));
   }
 
   .hero {
-    padding: 48px 0 64px;
+    padding: 40px 0 56px;
   }
 
   .actions {

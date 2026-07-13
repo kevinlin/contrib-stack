@@ -10,3 +10,6 @@ dist/
 
 # AGENTS.md
 AGENTS.md
+
+# pnpm store
+.pnpm-store/

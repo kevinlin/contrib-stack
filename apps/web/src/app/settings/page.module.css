@@ -1,13 +1,17 @@
 .main {
   max-width: 720px;
   margin: 0 auto;
-  padding: 2rem 1.5rem 3rem;
+  padding: 2rem
+    max(1.5rem, env(safe-area-inset-right))
+    3rem
+    max(1.5rem, env(safe-area-inset-left));
 }
 
 .accountBar {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  gap: 1rem;
+  gap: 0.5rem 1rem;
   font-size: 0.9rem;
   color: var(--muted, #666);
   margin-bottom: 1.5rem;
@@ -210,6 +214,13 @@
   cursor: pointer;
 }
 
+@media (pointer: coarse) {
+  .colorOption {
+    width: 40px;
+    height: 40px;
+  }
+}
+
 .colorOption[aria-pressed="true"] {
   border-color: var(--foreground, #171717);
 }
@@ -239,6 +250,15 @@
   color: inherit;
 }
 
+/* Touch keyboards zoom into any focused control under 16px. This class-scoped
+   rule outranks the element-level fallback in globals.css. */
+@media (pointer: coarse) {
+  .field input,
+  .field select {
+    font-size: 16px;
+  }
+}
+
 .formError {
   color: #b00020;
   margin-bottom: 1rem;
@@ -253,6 +273,15 @@
   font-size: 0.9rem;
   cursor: pointer;
   border: 1px solid transparent;
+}
+
+@media (pointer: coarse) {
+  .buttonPrimary,
+  .buttonSecondary,
+  .buttonDanger {
+    min-height: 44px;
+    padding-inline: 1.1rem;
+  }
 }
 
 .buttonPrimary {
@@ -373,10 +402,21 @@
 
 @media (max-width: 640px) {
   .main {
-    padding: 1.25rem 1rem 2rem;
+    padding: 1.25rem
+      max(1rem, env(safe-area-inset-right))
+      2rem
+      max(1rem, env(safe-area-inset-left));
   }
 
   .connectionHeader {
     flex-wrap: wrap;
+  }
+
+  .modalActions {
+    flex-direction: column;
+  }
+
+  .modalActions button {
+    width: 100%;
   }
 }

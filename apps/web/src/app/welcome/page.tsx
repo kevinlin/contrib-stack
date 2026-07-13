@@ -116,7 +116,11 @@ export default function WelcomePage() {
             {error}
           </p>
         ) : null}
-        <button type="submit" disabled={submitting} style={{ padding: "8px 16px" }}>
+        <button
+          type="submit"
+          disabled={submitting}
+          style={{ padding: "10px 18px", minHeight: 44, fontSize: 16 }}
+        >
           {submitting ? "Claiming…" : "Claim handle"}
         </button>
       </form>
