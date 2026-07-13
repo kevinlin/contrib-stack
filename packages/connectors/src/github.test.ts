@@ -16,11 +16,22 @@ const contributionsFixture = JSON.parse(
 );
 
 function mockJsonResponse(body: unknown, status = 200): Response {
+  const encoded = new TextEncoder().encode(JSON.stringify(body));
   return {
     ok: status >= 200 && status < 300,
     status,
+    headers: new Headers({
+      "content-type": "application/json",
+      "content-length": String(encoded.byteLength),
+    }),
     json: async () => body,
-  } as Response;
+    body: new ReadableStream({
+      start(controller) {
+        controller.enqueue(encoded);
+        controller.close();
+      },
+    }),
+  } as unknown as Response;
 }
 
 describe("githubConnector", () => {
@@ -71,7 +82,9 @@ describe("githubConnector", () => {
 
   describe("backfill", () => {
     it("walks year windows and yields pre-bucketed days from contributionsCollection", async () => {
-      vi.mocked(fetch).mockResolvedValue(mockJsonResponse(contributionsFixture));
+      vi.mocked(fetch).mockImplementation(async () =>
+        mockJsonResponse(contributionsFixture),
+      );
 
       const batches: { date: string; count: number }[][] = [];
       for await (const batch of githubConnector.backfill(
@@ -123,7 +136,9 @@ describe("githubConnector", () => {
     it("returns trailing window of days from UTC today", async () => {
       vi.useFakeTimers();
       vi.setSystemTime(new Date("2025-06-14T15:30:00Z"));
-      vi.mocked(fetch).mockResolvedValue(mockJsonResponse(contributionsFixture));
+      vi.mocked(fetch).mockImplementation(async () =>
+        mockJsonResponse(contributionsFixture),
+      );
 
       const result = await githubConnector.refresh(creds, 35);
 

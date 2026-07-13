@@ -5,12 +5,16 @@ import {
   ConnectorAuthError,
   type DayCount,
 } from "./types";
+import { safeFetch, validateUrl } from "./safe-fetch";
 
 const GITLAB_DEFAULT_BASE = "https://gitlab.com";
+const MAX_PAGES_PER_WINDOW = 100;
 
 function apiBase(creds: ConnectorCreds): string {
   const base = creds.baseUrl ?? GITLAB_DEFAULT_BASE;
-  return base.replace(/\/$/, "");
+  const cleaned = base.replace(/\/$/, "");
+  validateUrl(`${cleaned}/api/v4/user`);
+  return cleaned;
 }
 
 function bucketByTimezone(timestamps: string[], tz: string): DayCount[] {
@@ -88,10 +92,11 @@ async function gitlabFetch(
   path: string,
 ): Promise<Response> {
   const url = `${apiBase(creds)}${path}`;
-  return fetch(url, {
+  return safeFetch(url, {
     headers: {
       "PRIVATE-TOKEN": creds.token,
     },
+    sensitiveHeaders: ["PRIVATE-TOKEN"],
   });
 }
 
@@ -118,7 +123,7 @@ async function fetchAllEvents(
   const timestamps: string[] = [];
   let page = 1;
 
-  while (true) {
+  while (page <= MAX_PAGES_PER_WINDOW) {
     const path =
       `/api/v4/users/${userId}/events` +
       `?after=${after}&before=${before}&per_page=100&page=${page}`;

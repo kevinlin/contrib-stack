@@ -5,6 +5,7 @@ import {
   ConnectorAuthError,
   type DayCount,
 } from "./types";
+import { safeFetch, validateUrl } from "./safe-fetch";
 
 const GITHUB_GRAPHQL_URL = "https://api.github.com/graphql";
 
@@ -69,7 +70,9 @@ function toDateTime(date: string): string {
 function graphqlUrl(creds: ConnectorCreds): string {
   if (creds.baseUrl) {
     const base = creds.baseUrl.replace(/\/$/, "");
-    return `${base}/api/graphql`;
+    const url = `${base}/api/graphql`;
+    validateUrl(url);
+    return url;
   }
   return GITHUB_GRAPHQL_URL;
 }
@@ -91,13 +94,14 @@ async function githubFetch(
   const body = JSON.stringify({ query, variables });
 
   for (let attempt = 0; attempt < 2; attempt++) {
-    const response = await fetch(url, {
+    const response = await safeFetch(url, {
       method: "POST",
       headers: {
         Authorization: `Bearer ${creds.token}`,
         "Content-Type": "application/json",
       },
       body,
+      sensitiveHeaders: ["Authorization"],
     });
 
     if (response.status === 401) {

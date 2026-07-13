@@ -22,11 +22,22 @@ const eventsPage3 = JSON.parse(
 );
 
 function mockJsonResponse(body: unknown, status = 200): Response {
+  const encoded = new TextEncoder().encode(JSON.stringify(body));
   return {
     ok: status >= 200 && status < 300,
     status,
+    headers: new Headers({
+      "content-type": "application/json",
+      "content-length": String(encoded.byteLength),
+    }),
     json: async () => body,
-  } as Response;
+    body: new ReadableStream({
+      start(controller) {
+        controller.enqueue(encoded);
+        controller.close();
+      },
+    }),
+  } as unknown as Response;
 }
 
 describe("makeGitlabConnector", () => {
@@ -170,6 +181,36 @@ describe("makeGitlabConnector", () => {
       expect(eventUrl).toContain("after=2025-05-11");
       expect(eventUrl).toContain("before=2025-06-14");
       expect(eventUrl).toContain("per_page=100");
+    });
+  });
+
+  describe("pagination bounds", () => {
+    it("stops after MAX_PAGES_PER_WINDOW even if server keeps returning events", async () => {
+      vi.mocked(fetch).mockImplementation(async (input) => {
+        const href = input.toString();
+        if (href.endsWith("/api/v4/user")) {
+          return mockJsonResponse(userFixture);
+        }
+        return mockJsonResponse([
+          { id: 1, action_name: "pushed to", created_at: "2024-06-01T10:00:00Z" },
+        ]);
+      });
+
+      const batches: { date: string; count: number }[][] = [];
+      for await (const batch of connector.backfill(
+        creds,
+        "2024-01-01",
+        "2024-12-31",
+      )) {
+        batches.push(batch);
+      }
+
+      const eventCalls = vi
+        .mocked(fetch)
+        .mock.calls.filter(([url]) =>
+          url.toString().includes("/users/12345/events"),
+        );
+      expect(eventCalls.length).toBeLessThanOrEqual(100);
     });
   });
 
