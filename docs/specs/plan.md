@@ -153,3 +153,24 @@ Ran the full verification suite (lint, tests, migration, build, E2E), confirmed 
 - `docs/specs/design.md` — expanded §9 with detailed embedding instructions, attribute reference, API origin resolution docs, and a full HTML example
 
 - 2026-07-13 — **Compacted post-implementation.** Removed step-by-step implementation tasks, file-by-file diffs, code snippets, interface definitions, and verification command lists now that the feature has shipped. Merged `plan_production-homepage-shutdown.md` tasks (16–18) into this plan. Preserved Goal, Global Constraints, per-task intent paragraphs, MVP Success-Criteria Results, and deployment evidence. Original plan is recoverable via git history.
+
+- 2026-07-13 — **Config UI: server auth gate + sign-out + E2E**
+
+**Problem:** `/settings` relied on a client-side 401 redirect — no server guard. Pending-handle users could land on `/settings` instead of being redirected to `/welcome` (criterion-1 defect). No signed-in indicator, no "View profile" link, no sign-out. Zero E2E coverage of the authenticated settings flow.
+
+**Fix:** Extracted the client component to `settings-client.tsx` and rewrote `page.tsx` as an async server component: `auth()` → no session redirect, pending-handle → `/welcome` redirect, else render client with account prop. Added sign-out server action (deletes DB session via Auth.js `signOut`). Account bar shows handle, profile link, and sign-out button.
+
+**Tests added:**
+- `apps/web/src/app/settings/page.test.tsx` — 4 unit tests (no-session redirect, pending redirect, claimed user render, signOutAction)
+- `apps/web/e2e/settings.spec.ts` — 5 E2E tests (unauth redirect, pending redirect, account bar + connections, add/delete ingest connection, sign-out)
+- E2E seed updated with pending user + session fixture
+
+**Files changed:**
+- `apps/web/src/app/settings/settings-client.tsx` — new (extracted client UI + account bar)
+- `apps/web/src/app/settings/page.tsx` — rewritten as server auth gate
+- `apps/web/src/app/settings/actions.ts` — new (signOut server action)
+- `apps/web/src/app/settings/page.module.css` — added `.accountBar` styles
+- `apps/web/src/app/settings/page.test.tsx` — new (gate unit tests)
+- `apps/web/e2e/seed.ts` — added pending user + session
+- `apps/web/e2e/settings.spec.ts` — new (authenticated E2E)
+- `docs/specs/design.md` — §5 settings gate, §12 E2E note

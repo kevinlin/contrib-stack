@@ -4,6 +4,31 @@
   padding: 2rem 1.5rem 3rem;
 }
 
+.accountBar {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  font-size: 0.9rem;
+  color: var(--muted, #666);
+  margin-bottom: 1.5rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid var(--border, #e5e5e5);
+}
+
+.accountBar a {
+  color: var(--accent, #171717);
+  text-decoration: none;
+  font-weight: 500;
+}
+
+.accountBar a:hover {
+  text-decoration: underline;
+}
+
+.accountBar form {
+  margin-left: auto;
+}
+
 .header {
   margin-bottom: 2rem;
 }

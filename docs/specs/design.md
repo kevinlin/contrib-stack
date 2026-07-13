@@ -53,6 +53,7 @@ Deployment: Railway single node with volume. SQLite via Drizzle ORM + better-sql
 | `GET /api/health` | none | `{ "status": "ok" }`, `Cache-Control: no-store`. Railway health check target |
 | `POST /api/admin/connections` | `Authorization: Bearer <ADMIN_API_KEY>` | Create a GitHub/GitLab connection for a user. Body: `{ handle, type, label, token, baseUrl?, createdAt? }`. Validates token against the source API, starts backfill. Disabled when `ADMIN_API_KEY` unset |
 | `DELETE /api/admin/connections` | `Authorization: Bearer <ADMIN_API_KEY>` | Delete a connection by handle + slug. Body: `{ handle, slug }`. Cascades `daily_counts` |
+| `/settings` (page) | Auth.js session (server gate) | `auth()` in page component; unauthenticated → redirect to sign-in; pending handle → redirect to `/welcome` (fixes criterion-1 defect). Signed-in header shows handle, "View profile" link, and sign-out button (server action deletes DB session) |
 | Settings routes | Auth.js session | Connection CRUD (PAT validated against the source API on save), color/label edit, full resync, privacy toggle, handle claim, timezone |
 | `/widget.js` | none | Static widget bundle, long-cache with hash busting |
 
@@ -180,7 +181,7 @@ The profile page at `/{handle}` mounts the same `<contrib-stack>` component with
 
 - **Unit**: streak and aggregation math, split-cell layout, upsert idempotency, encryption round-trip.
 - **Connector**: recorded API fixtures (GitHub GraphQL, GitLab events); no live calls in CI.
-- **E2E (Playwright)**: mocked sign-in → connect source → profile renders → external embed test page renders widget.
+- **E2E (Playwright)**: mocked sign-in → connect source → profile renders → external embed test page renders widget. Authenticated settings flow: auth gate redirect, pending-handle redirect, account bar, connection add/delete, sign-out.
 - **CI budget check**: widget bundle size.
 
 ## 13. Deployment
