@@ -26,6 +26,7 @@ export const API_KEY = "csk_testkey123456789012345678901234";
 
 export type E2EFixtures = {
   sessionToken: string;
+  pendingSessionToken: string;
   apiKey: string;
   handle: string;
   demoHandle: string;
@@ -174,7 +175,9 @@ export function seedDatabase(): E2EFixtures {
   const syncedAt = "2026-07-11T12:00:00.000Z";
   const userId = "e2e-user-testuser";
   const demoUserId = "e2e-user-demo";
+  const pendingUserId = "e2e-user-pending";
   const sessionToken = "e2e-session-token-testuser";
+  const pendingSessionToken = "e2e-session-token-pending";
 
   seedUserProfile(db, {
     userId,
@@ -199,19 +202,30 @@ export function seedDatabase(): E2EFixtures {
     syncedAt,
   });
 
+  db.insert(users)
+    .values({
+      id: pendingUserId,
+      githubId: "10003",
+      handle: "__pending__" + pendingUserId,
+      timezone: "UTC",
+      isPrivate: false,
+      createdAt,
+    })
+    .run();
+
   const expires = new Date("2027-01-01T00:00:00.000Z");
   db.insert(sessions)
-    .values({
-      sessionToken,
-      userId,
-      expires,
-    })
+    .values([
+      { sessionToken, userId, expires },
+      { sessionToken: pendingSessionToken, userId: pendingUserId, expires },
+    ])
     .run();
 
   sqlite.close();
 
   const fixtures: E2EFixtures = {
     sessionToken,
+    pendingSessionToken,
     apiKey: API_KEY,
     handle: "testuser",
     demoHandle: "demo",
