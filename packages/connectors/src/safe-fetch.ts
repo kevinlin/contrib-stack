@@ -271,11 +271,11 @@ class SizeLimitedResponse implements Response {
     return new TextDecoder().decode(buf);
   }
 
-  async bytes(): Promise<Uint8Array> {
+  async bytes(): Promise<Uint8Array<ArrayBuffer>> {
     return this._readLimited();
   }
 
-  private async _readLimited(): Promise<Uint8Array> {
+  private async _readLimited(): Promise<Uint8Array<ArrayBuffer>> {
     if (this._consumed) {
       throw new TypeError("Body already consumed");
     }
