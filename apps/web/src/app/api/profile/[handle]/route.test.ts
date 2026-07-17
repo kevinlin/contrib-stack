@@ -242,4 +242,35 @@ describe("GET /api/profile/:handle", () => {
       "2026-07-11",
     ]);
   });
+
+  it("excludes years older than 10 years from the years list", async () => {
+    seedProfileData(db);
+    db.insert(dailyCounts)
+      .values({ connectionId: "conn-github", date: "2015-05-01", count: 5 })
+      .run();
+
+    const res = await getProfile("kevinlin", "range=all");
+    const body = await res.json();
+
+    expect(body.years).toEqual([2026, 2025, 2024]);
+    const github = body.connections.find(
+      (c: { slug: string }) => c.slug === "github-personal",
+    );
+    expect(github.days.map((d: { date: string }) => d.date)).toContain(
+      "2015-05-01",
+    );
+  });
+
+  it("excludes zero-count-only years from the years list", async () => {
+    seedProfileData(db);
+    db.insert(dailyCounts)
+      .values({ connectionId: "conn-github", date: "2023-03-01", count: 0 })
+      .run();
+
+    const res = await getProfile("kevinlin", "year=2026");
+    const body = await res.json();
+
+    expect(body.years).not.toContain(2023);
+    expect(body.years).toEqual([2026, 2025, 2024]);
+  });
 });

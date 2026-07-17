@@ -69,8 +69,8 @@ interface Connector {
 }
 ```
 
-- **GitHub**: GraphQL `contributionsCollection` — returns the contribution calendar pre-bucketed by GitHub; taken as-is (D17). Backfill loops 1-year windows back to `createdAt`. Works for github.com and GHE via base_url.
-- **GitLab**: `GET /users/:id/events` paged, timestamps bucketed into the user's profile timezone server-side. Native event definition, no normalization (D6). Works for gitlab.com and self-managed via base_url.
+- **GitHub**: GraphQL `contributionsCollection` — returns the contribution calendar pre-bucketed by GitHub; taken as-is (D17). Backfill loops 1-year windows back to the last 10 calendar years (`HISTORY_YEARS`). Works for github.com and GHE via base_url.
+- **GitLab**: `GET /users/:id/events` paged, timestamps bucketed into the user's profile timezone server-side. Native event definition, no normalization (D6). Works for gitlab.com and self-managed via base_url. Known limitation: gitlab.com's events API has native retention (~3 years); older windows return empty pages.
 - **Ingest**: no connector code — external agents push pre-bucketed dates.
 
 Known limitation (documented, not solved): the server must be able to reach self-hosted instances; VPN-only hosts won't work.
@@ -78,13 +78,13 @@ Known limitation (documented, not solved): the server must be able to reach self
 ## 7. Sync engine
 
 - **Persist forever**: `daily_counts` rows are permanent; history never re-pulled (D9).
-- **Backfill** on connection create: fire-and-forget async loop over year windows, `status = backfilling`, progress polled by the settings UI. No queue system — single node, in-process.
+- **Backfill** on connection create: fire-and-forget async loop over 1-year windows covering the last 10 calendar years, `status = backfilling`, progress polled by the settings UI. Zero-count days are filtered during backfill to avoid writing empty rows. No queue system — single node, in-process.
 - **Stale-while-revalidate** on profile/embed requests: always serve persisted data immediately; if `last_synced_at` > 10 min, kick a background refresh of the trailing 35 days. Per-connection in-process mutex prevents stampedes.
 - **Manual full resync** button in settings covers history-mutating cases (rebases, backdated commits).
 
 ## 8. Profile page UX
 
-- Year-at-a-time 53-week heatmap; year list navigates back to earliest data. No month zoom.
+- Year-at-a-time 53-week heatmap; year list shows years with data within the last 10 years. No month zoom.
 - **Split-cell rendering** (D7): a day with N active layers divides into N stripes, each in its connection color, shade = that source's intensity for the day. Hover/tap tooltip lists exact per-connection counts.
 - **Legend chips** = one per connection (color swatch + label + total). Click toggles/isolates layers; toggles also filter stat tiles.
 - **Stat tiles**: current streak, longest streak, total active days, per-connection totals. Streak = activity on any visible connection (D12). Tiles recompute per selected year; "All" tab = lifetime.

@@ -1,3 +1,10 @@
+export const HISTORY_YEARS = 10;
+
+export function historyStart(today: string): string {
+  const year = Number(today.slice(0, 4)) - (HISTORY_YEARS - 1);
+  return `${year}-01-01`;
+}
+
 function parseDate(date: string): Date {
   const [year, month, day] = date.split("-").map(Number);
   return new Date(Date.UTC(year, month - 1, day));

@@ -2,6 +2,7 @@ import type { Connector, ConnectorCreds, DayCount } from "@contrib-stack/connect
 import { eq } from "drizzle-orm";
 import type { Db } from "../db/client";
 import { connections, dailyCounts } from "../db/schema";
+import { historyStart } from "../domain/calendar";
 import { decryptSecret } from "../lib/crypto";
 
 export type ConnectorFactory = (connection: {
@@ -13,10 +14,6 @@ export type ConnectorFactory = (connection: {
 
 function utcToday(): string {
   return new Date().toISOString().slice(0, 10);
-}
-
-function sinceDate(createdAt: string): string {
-  return createdAt.slice(0, 10);
 }
 
 export function buildCreds(connection: {
@@ -72,11 +69,11 @@ export async function runBackfill(
   try {
     const connector = getConnector(connection);
     const creds = buildCreds(connection);
-    const since = sinceDate(connection.createdAt);
+    const since = historyStart(utcToday());
     const until = utcToday();
 
     for await (const batch of connector.backfill(creds, since, until)) {
-      upsertDailyCounts(db, connectionId, batch);
+      upsertDailyCounts(db, connectionId, batch.filter((d) => d.count > 0));
     }
 
     db.update(connections)

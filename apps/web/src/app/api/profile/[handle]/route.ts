@@ -6,6 +6,7 @@ import { eq, inArray } from "drizzle-orm";
 import { NextResponse } from "next/server";
 import { getDb } from "@/db/client";
 import { connections, dailyCounts, users } from "@/db/schema";
+import { HISTORY_YEARS } from "@/domain/calendar";
 import type { ConnectorFactory } from "@/sync/backfill";
 import { refreshIfStale } from "@/sync/refresh";
 
@@ -101,9 +102,16 @@ export async function GET(
           .where(inArray(dailyCounts.connectionId, connectionIds))
           .all();
 
+  const minYear = Number(new Date().toISOString().slice(0, 4)) - (HISTORY_YEARS - 1);
   const years = [
-    ...new Set(allCounts.map((row) => Number(row.date.slice(0, 4)))),
-  ].sort((a, b) => b - a);
+    ...new Set(
+      allCounts
+        .filter((row) => row.count > 0)
+        .map((row) => Number(row.date.slice(0, 4))),
+    ),
+  ]
+    .filter((year) => year >= minYear)
+    .sort((a, b) => b - a);
 
   const range = resolveDateRange(new URL(request.url).searchParams);
   const getConnector = makeConnectorFactory(db);

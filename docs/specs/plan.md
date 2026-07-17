@@ -174,3 +174,18 @@ Ran the full verification suite (lint, tests, migration, build, E2E), confirmed 
 - `apps/web/e2e/seed.ts` — added pending user + session
 - `apps/web/e2e/settings.spec.ts` — new (authenticated E2E)
 - `docs/specs/design.md` — §5 settings gate, §12 E2E note
+
+- 2026-07-17 — **Extend contribution history to 10 years**
+
+**Problem:** `runBackfill` used the connection row's `createdAt` (set to `new Date()` at insert) as the backfill start date — new connections only pulled history from the day they were created. The year picker was uncapped and didn't filter zero-count years, so empty years could appear in navigation.
+
+**Fix:** Introduced `HISTORY_YEARS = 10` constant and `historyStart(today)` helper in `apps/web/src/domain/calendar.ts`. Backfill now starts from Jan 1 of (currentYear − 9). Zero-count days are filtered during backfill (not in `upsertDailyCounts`, which refresh still uses). Profile API year list filters to years within the 10-year window that have at least one non-zero count. Existing connections get the extended history via manual resync.
+
+**Files changed:**
+- `apps/web/src/domain/calendar.ts` — added `HISTORY_YEARS`, `historyStart()`
+- `apps/web/src/domain/calendar.test.ts` — tests for `historyStart`
+- `apps/web/src/sync/backfill.ts` — use `historyStart(utcToday())`, removed `sinceDate`, filter zero-count days
+- `apps/web/src/sync/backfill.test.ts` — updated since assertion, added zero-count filtering test
+- `apps/web/src/app/api/profile/[handle]/route.ts` — year list filters by 10y window + count > 0
+- `apps/web/src/app/api/profile/[handle]/route.test.ts` — added boundary and zero-count year tests
+- `docs/specs/design.md` — §6 backfill depth, §7 zero-count filter, §8 year list scope

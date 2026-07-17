@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { yearWindows } from "./calendar";
+import { yearWindows, HISTORY_YEARS, historyStart } from "./calendar";
 
 describe("yearWindows", () => {
   it("splits a multi-year span into ≤1-year chunks with exact boundaries and no overlap", () => {
@@ -39,5 +39,25 @@ describe("yearWindows", () => {
         .slice(0, 10);
       expect(windows[i].from).toBe(nextStart);
     }
+  });
+});
+
+describe("HISTORY_YEARS", () => {
+  it("equals 10", () => {
+    expect(HISTORY_YEARS).toBe(10);
+  });
+});
+
+describe("historyStart", () => {
+  it("returns Jan 1 of (currentYear - 9) for a mid-year date", () => {
+    expect(historyStart("2026-07-17")).toBe("2017-01-01");
+  });
+
+  it("returns Jan 1 of (currentYear - 9) for Jan 1 itself", () => {
+    expect(historyStart("2026-01-01")).toBe("2017-01-01");
+  });
+
+  it("returns Jan 1 of (currentYear - 9) for Dec 31", () => {
+    expect(historyStart("2026-12-31")).toBe("2017-01-01");
   });
 });
